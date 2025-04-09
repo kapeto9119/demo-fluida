@@ -2,7 +2,6 @@ package solana
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -10,9 +9,9 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/gagliardetto/solana-go/rpc/ws"
 	"github.com/ncapetillo/demo-fluida/internal/db"
 	"github.com/ncapetillo/demo-fluida/internal/models"
+	"github.com/ncapetillo/demo-fluida/internal/repository"
 	"gorm.io/gorm"
 )
 
@@ -27,37 +26,31 @@ const (
 
 // PaymentWatcher monitors Solana blockchain for USDC payments to specific addresses
 type PaymentWatcher struct {
-	rpcClient *rpc.Client
-	wsClient  *ws.Client
-	database  *gorm.DB
-	ctx       context.Context
-	cancel    context.CancelFunc
+	rpcClient  *rpc.Client
+	repository repository.InvoiceRepository
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 // NewPaymentWatcher creates a new payment watcher for the Solana blockchain
 func NewPaymentWatcher() (*PaymentWatcher, error) {
 	// We're using devnet for development
 	endpoint := rpc.DevNet_RPC
-	wsEndpoint := rpc.DevNet_WS
 	
 	// Create RPC client
 	rpcClient := rpc.New(endpoint)
 	
-	// Create WebSocket client
-	wsClient, err := ws.Connect(context.Background(), wsEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Solana WebSocket: %v", err)
-	}
-	
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	
+	// Initialize repository
+	invoiceRepo := repository.NewInvoiceRepository(db.DB)
+	
 	return &PaymentWatcher{
-		rpcClient: rpcClient,
-		wsClient:  wsClient,
-		database:  db.DB,
-		ctx:       ctx,
-		cancel:    cancel,
+		rpcClient:  rpcClient,
+		repository: invoiceRepo,
+		ctx:        ctx,
+		cancel:     cancel,
 	}, nil
 }
 
@@ -87,32 +80,54 @@ func (pw *PaymentWatcher) Start() {
 // Stop halts the payment watcher
 func (pw *PaymentWatcher) Stop() {
 	pw.cancel()
-	if pw.wsClient != nil {
-		pw.wsClient.Close()
-	}
 	log.Println("Payment watcher stopped")
+}
+
+// WatchForPayments starts watching for payments (alias for Start method)
+func (pw *PaymentWatcher) WatchForPayments() {
+	pw.Start()
 }
 
 // checkPendingInvoices looks for pending invoices and checks for payments
 func (pw *PaymentWatcher) checkPendingInvoices() error {
-	var pendingInvoices []models.Invoice
+	// Create a timeout context for this operation
+	ctx, cancel := context.WithTimeout(pw.ctx, 30*time.Second)
+	defer cancel()
 	
 	// Find all pending invoices
-	if err := pw.database.Where("status = ?", models.StatusPending).Find(&pendingInvoices).Error; err != nil {
+	pendingInvoices, err := pw.repository.FindPendingInvoices(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to fetch pending invoices: %v", err)
 	}
 	
 	// Check each invoice for payments
 	for _, invoice := range pendingInvoices {
-		paid, err := pw.checkForPayment(invoice)
+		// Skip checking if context is done
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			// Continue processing
+		}
+		
+		paid, err := pw.checkForPayment(ctx, invoice)
 		if err != nil {
 			log.Printf("Error checking payment for invoice %s: %v", invoice.InvoiceNumber, err)
 			continue
 		}
 		
 		if paid {
-			// Update invoice status to PAID
-			if err := models.UpdateInvoiceStatus(pw.database, invoice.ID, models.StatusPaid); err != nil {
+			// Use database transaction to update the invoice status
+			err := db.DB.Transaction(func(tx *gorm.DB) error {
+				txCtx, txCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer txCancel()
+				
+				txRepo := repository.NewInvoiceRepository(tx)
+				// Update invoice status to PAID
+				return txRepo.UpdateStatus(txCtx, invoice.ID, models.StatusPaid)
+			})
+			
+			if err != nil {
 				log.Printf("Failed to update invoice %s to PAID: %v", invoice.InvoiceNumber, err)
 			} else {
 				log.Printf("Invoice %s marked as PAID", invoice.InvoiceNumber)
@@ -124,49 +139,44 @@ func (pw *PaymentWatcher) checkPendingInvoices() error {
 }
 
 // checkForPayment checks if a specific invoice has been paid
-func (pw *PaymentWatcher) checkForPayment(invoice models.Invoice) (bool, error) {
+func (pw *PaymentWatcher) checkForPayment(ctx context.Context, invoice models.Invoice) (bool, error) {
 	// Parse receiver address
 	receiverPubkey, err := solana.PublicKeyFromBase58(invoice.ReceiverAddr)
 	if err != nil {
 		return false, fmt.Errorf("invalid receiver address: %v", err)
 	}
 	
-	// Parse USDC token mint
-	usdcMint, err := solana.PublicKeyFromBase58(USDCDevnetMint)
-	if err != nil {
-		return false, fmt.Errorf("invalid USDC mint address: %v", err)
-	}
-	
-	// Get recent transactions for the receiver address
-	txSignatures, err := pw.rpcClient.GetSignaturesForAddress(
-		context.Background(),
-		receiverPubkey,
-		&rpc.GetSignaturesForAddressOpts{
-			Limit: 10, // Limit to recent transactions
-		},
-	)
+	// Get recent signatures for the account
+	signatures, err := pw.rpcClient.GetSignaturesForAddress(ctx, receiverPubkey)
 	if err != nil {
 		return false, fmt.Errorf("failed to get transaction signatures: %v", err)
 	}
 	
 	// Check each transaction
-	for _, sigInfo := range txSignatures {
-		// Only check confirmed transactions
-		if sigInfo.Err != nil {
+	for _, sig := range signatures {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			// Continue processing
+		}
+		
+		// Skip failed transactions
+		if sig.Err != nil {
 			continue
 		}
 		
-		// Parse transaction signature
-		signature, err := solana.SignatureFromBase58(sigInfo.Signature)
+		// Get transaction details
+		txSig, err := solana.SignatureFromBase58(sig.Signature.String())
 		if err != nil {
 			log.Printf("Invalid signature format: %v", err)
 			continue
 		}
 		
-		// Get transaction details
 		tx, err := pw.rpcClient.GetTransaction(
-			context.Background(),
-			signature,
+			ctx, 
+			txSig,
 			&rpc.GetTransactionOpts{
 				Encoding: solana.EncodingJSON,
 			},
@@ -176,8 +186,8 @@ func (pw *PaymentWatcher) checkForPayment(invoice models.Invoice) (bool, error) 
 			continue
 		}
 		
-		// Check if this is a token transfer
-		if isUSDCPayment(tx, usdcMint, receiverPubkey, invoice.Amount) {
+		// Check if this is a USDC payment to the receiver
+		if isPaymentForInvoice(tx, invoice, receiverPubkey) {
 			return true, nil
 		}
 	}
@@ -185,11 +195,8 @@ func (pw *PaymentWatcher) checkForPayment(invoice models.Invoice) (bool, error) 
 	return false, nil
 }
 
-// isUSDCPayment checks if a transaction is a valid USDC payment for the invoice
-func isUSDCPayment(tx *rpc.GetTransactionResult, usdcMint, receiver solana.PublicKey, expectedAmount float64) bool {
-	// Log the transaction we're checking
-	log.Printf("Checking transaction for USDC payment: %s", tx.Transaction.Signatures[0])
-	
+// isPaymentForInvoice determines if a transaction represents payment for an invoice
+func isPaymentForInvoice(tx *rpc.GetTransactionResult, invoice models.Invoice, receiverPubkey solana.PublicKey) bool {
 	// Ensure we have transaction data
 	if tx == nil || tx.Meta == nil {
 		return false
@@ -198,74 +205,70 @@ func isUSDCPayment(tx *rpc.GetTransactionResult, usdcMint, receiver solana.Publi
 	// USDC uses 6 decimals
 	const usdcDecimals = 6
 	
-	// Get post token balances
-	for _, balance := range tx.Meta.PostTokenBalances {
-		// Check if this is for the USDC token
-		mintAddress := balance.Mint
-		if mintAddress != usdcMint.String() {
+	// Check for token transfers in the transaction
+	for _, postBalance := range tx.Meta.PostTokenBalances {
+		// Check if this is for the USDC token mint
+		// Use string comparison instead of direct type comparison
+		if postBalance.Mint.String() != USDCDevnetMint {
 			continue
 		}
 		
-		// Check if the destination is our receiver
-		ownerAddress := balance.Owner
-		if ownerAddress != receiver.String() {
+		// Check if the owner is our receiver
+		if postBalance.Owner == nil {
 			continue
 		}
 		
-		// Find the pre-balance for the same account
+		if postBalance.Owner.String() != receiverPubkey.String() {
+			continue
+		}
+		
+		// Find the pre-balance for comparison
 		var preBalance *rpc.TokenBalance
-		for _, pb := range tx.Meta.PreTokenBalances {
-			if pb.AccountIndex == balance.AccountIndex && pb.Mint == balance.Mint {
-				preBalance = &pb
+		for _, pre := range tx.Meta.PreTokenBalances {
+			if pre.AccountIndex == postBalance.AccountIndex {
+				preBalance = &pre
 				break
 			}
 		}
 		
-		// If we found a pre-balance, calculate the difference
-		if preBalance != nil {
-			// Get balances as uint64
-			preAmount, ok := new(big.Int).SetString(preBalance.UITokenAmount.Amount, 10)
-			if !ok {
-				log.Printf("Failed to parse pre-balance amount: %s", preBalance.UITokenAmount.Amount)
-				continue
-			}
-			
-			postAmount, ok := new(big.Int).SetString(balance.UITokenAmount.Amount, 10)
-			if !ok {
-				log.Printf("Failed to parse post-balance amount: %s", balance.UITokenAmount.Amount)
-				continue
-			}
-			
-			// Calculate difference (postAmount - preAmount)
-			diff := new(big.Int).Sub(postAmount, preAmount)
-			
-			// Convert to float with 6 decimals (USDC)
-			amountReceived := convertTokenAmount(diff, usdcDecimals)
-			
-			// Check if the transferred amount matches the expected amount
-			// We allow a small difference to account for potential calculation errors
-			const tolerance = 0.001 // small tolerance for floating point comparison
-			if amountReceived >= expectedAmount-tolerance && amountReceived <= expectedAmount+tolerance {
-				log.Printf("Found matching USDC payment: expected %f, received %f", expectedAmount, amountReceived)
-				return true
-			}
-			
-			log.Printf("Found USDC transfer but amount doesn't match: expected %f, received %f", 
-				expectedAmount, amountReceived)
+		if preBalance == nil {
+			continue
+		}
+		
+		// Calculate the amount received (post - pre)
+		preAmount := parseUiAmount(preBalance.UiTokenAmount.Amount)
+		postAmount := parseUiAmount(postBalance.UiTokenAmount.Amount)
+		
+		if preAmount == nil || postAmount == nil {
+			continue
+		}
+		
+		diff := new(big.Float).Sub(postAmount, preAmount)
+		
+		// Convert to float64 for comparison
+		amountReceived, _ := diff.Float64()
+		
+		// Allow a small tolerance for floating point comparison
+		const tolerance = 0.001
+		if amountReceived >= invoice.Amount-tolerance && amountReceived <= invoice.Amount+tolerance {
+			log.Printf("Found matching USDC payment: expected %f, received %f", invoice.Amount, amountReceived)
+			return true
 		}
 	}
 	
 	return false
 }
 
-// convertTokenAmount converts a token amount based on decimals
-func convertTokenAmount(amount *big.Int, decimals uint8) float64 {
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-	quotient := new(big.Float).Quo(
-		new(big.Float).SetInt(amount),
-		new(big.Float).SetInt(divisor),
-	)
+// parseUiAmount converts a UI amount string to a big.Float
+func parseUiAmount(amount string) *big.Float {
+	if amount == "" {
+		return nil
+	}
 	
-	result, _ := quotient.Float64()
+	result, success := new(big.Float).SetString(amount)
+	if !success {
+		return nil
+	}
+	
 	return result
 } 

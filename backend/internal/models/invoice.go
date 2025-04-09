@@ -33,11 +33,11 @@ type RecipientDetails struct {
 	Address string `json:"address,omitempty"`
 }
 
-// Person represents an entity (sender or recipient) in the system
+// Person represents sender or recipient information
 type Person struct {
 	Name    string `json:"name"`
 	Email   string `json:"email"`
-	Address string `json:"address"`
+	Address string `json:"address,omitempty"`
 }
 
 // Value implements the driver.Valuer interface for Person
@@ -167,14 +167,14 @@ func UpdateInvoiceStatus(db *gorm.DB, id uint, status InvoiceStatus) error {
 
 // CreateInvoiceRequest represents the data required to create a new invoice
 type CreateInvoiceRequest struct {
-	InvoiceNumber    string    `json:"invoiceNumber" binding:"required"`
-	Amount           float64   `json:"amount" binding:"required,gt=0"`
+	InvoiceNumber    string    `json:"invoiceNumber"`
+	Amount           float64   `json:"amount"`
 	Currency         string    `json:"currency"`
 	Description      string    `json:"description"`
-	DueDate          time.Time `json:"dueDate" binding:"required"`
-	ReceiverAddr     string    `json:"receiverAddr" binding:"required"`
-	SenderDetails    Person    `json:"senderDetails" binding:"required"`
-	RecipientDetails Person    `json:"recipientDetails" binding:"required"`
+	DueDate          time.Time `json:"dueDate"`
+	ReceiverAddr     string    `json:"receiverAddr"`
+	SenderDetails    Person    `json:"senderDetails"`
+	RecipientDetails Person    `json:"recipientDetails"`
 }
 
 // UpdateInvoiceStatusRequest represents the data required to update an invoice status

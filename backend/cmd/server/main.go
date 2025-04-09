@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/ncapetillo/demo-fluida/internal/db"
 	"github.com/ncapetillo/demo-fluida/internal/handlers"
+	"github.com/ncapetillo/demo-fluida/internal/repository"
 	"github.com/ncapetillo/demo-fluida/internal/services"
 	"github.com/ncapetillo/demo-fluida/internal/solana"
 )
@@ -25,29 +27,44 @@ func main() {
 	}
 
 	// Initialize database connection
-	if err := db.Connect(); err != nil {
+	log.Println("Connecting to database...")
+	sqlDB, err := db.Connect()
+	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-
+	
+	// Ensure database is closed when the program exits
+	defer func() {
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("Error closing database connection: %v", err)
+		}
+	}()
+	log.Println("Database connected successfully")
+	
+	// Initialize repository
+	invoiceRepo := repository.NewInvoiceRepository(db.DB)
+	
 	// Initialize services
-	invoiceService := services.NewInvoiceService()
+	invoiceService := services.NewInvoiceService(invoiceRepo)
 
 	// Initialize handlers
 	invoiceHandler := handlers.NewInvoiceHandler(invoiceService)
 
-	// Initialize and start Solana payment watcher
-	paymentWatcher, err := solana.NewPaymentWatcher()
-	if err != nil {
-		log.Printf("Warning: Failed to initialize Solana payment watcher: %v", err)
-		log.Println("Continuing without payment watcher - automatic payment detection will not work")
-	} else {
-		paymentWatcher.Start()
-		defer paymentWatcher.Stop()
-		log.Println("Solana payment watcher started successfully")
-	}
-
 	// Initialize router
 	r := chi.NewRouter()
+
+	// Initialize Solana payment watcher
+	solanaWatcher, err := solana.NewPaymentWatcher()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Solana payment watcher: %v", err)
+		log.Println("Automatic payment detection will not work")
+	} else {
+		// Start watching for payments in a separate goroutine
+		go solanaWatcher.WatchForPayments()
+		
+		// Ensure payment watcher is stopped on shutdown
+		defer solanaWatcher.Stop()
+	}
 
 	// Middleware
 	r.Use(middleware.Logger)
@@ -69,6 +86,14 @@ func main() {
 
 	// Health check endpoint
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		// Check database connection
+		if err := sqlDB.Ping(); err != nil {
+			log.Printf("Health check failed: %v", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Database connection unavailable"))
+			return
+		}
+		
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -88,17 +113,33 @@ func main() {
 	}
 
 	// Start server in a goroutine
+	serverCtx, serverStopCtx := context.WithCancel(context.Background())
+	
+	// Listen for interrupt signal
 	go func() {
-		log.Printf("Server starting on port %s", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+		// Listen for interrupt signal
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		<-sigChan
+		
+		// Create shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(serverCtx, 10*time.Second)
+		defer cancel()
+		
+		log.Println("Server shutting down gracefully...")
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Fatalf("Server forced to shutdown: %v", err)
 		}
+		serverStopCtx()
 	}()
-
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Server shutting down...")
+	
+	// Start server
+	log.Printf("Server starting on port %s", port)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server error: %v", err)
+	}
+	
+	// Wait for server context to be stopped
+	<-serverCtx.Done()
+	log.Println("Server exited properly")
 } 

@@ -18,8 +18,8 @@ import (
 
 const (
 	// USDC Token mint address on Solana devnet
-	// Note: This is just an example - you'll need to replace this with the actual devnet USDC mint address
-	USDCDevnetMint = "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
+	// This is the official USDC mint address for Solana devnet
+	USDCDevnetMint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 	
 	// Polling interval for checking transactions
 	pollInterval = 15 * time.Second
@@ -187,38 +187,72 @@ func (pw *PaymentWatcher) checkForPayment(invoice models.Invoice) (bool, error) 
 
 // isUSDCPayment checks if a transaction is a valid USDC payment for the invoice
 func isUSDCPayment(tx *rpc.GetTransactionResult, usdcMint, receiver solana.PublicKey, expectedAmount float64) bool {
-	// This is a simplified example. In a real implementation, you would:
-	// 1. Parse the transaction data to find SPL token transfers
-	// 2. Check if the token is USDC (matches usdcMint)
-	// 3. Verify the destination is the receiver
-	// 4. Confirm the amount matches expectedAmount
-	
-	// For this prototype, we'll use a mock implementation that just logs
-	// In a real implementation, you'd parse the transaction instruction data
-	
+	// Log the transaction we're checking
 	log.Printf("Checking transaction for USDC payment: %s", tx.Transaction.Signatures[0])
 	
-	// Simplistic approach - in real code you'd properly parse the transaction
-	// and its token transfer instructions
-	if tx != nil && tx.Meta != nil {
-		// For demonstration purposes only - this won't actually work as is
-		// You would need to properly decode the transaction instructions
-		
-		// Let's pretend we found a match - would be implemented with proper
-		// transaction instruction parsing in a real app
-		
-		// Just for logging - not real detection logic
-		jsonData, _ := json.MarshalIndent(tx, "", "  ")
-		log.Printf("Transaction data: %s", string(jsonData))
-		
-		// In a real implementation, return true ONLY if:
-		// 1. The transaction contains an SPL token transfer
-		// 2. The token is USDC (matches usdcMint)
-		// 3. The destination address matches the receiver
-		// 4. The amount (after adjusting for decimals) matches expectedAmount
-		
-		// For now, always return false since we're not actually parsing
+	// Ensure we have transaction data
+	if tx == nil || tx.Meta == nil {
 		return false
+	}
+	
+	// USDC uses 6 decimals
+	const usdcDecimals = 6
+	
+	// Get post token balances
+	for _, balance := range tx.Meta.PostTokenBalances {
+		// Check if this is for the USDC token
+		mintAddress := balance.Mint
+		if mintAddress != usdcMint.String() {
+			continue
+		}
+		
+		// Check if the destination is our receiver
+		ownerAddress := balance.Owner
+		if ownerAddress != receiver.String() {
+			continue
+		}
+		
+		// Find the pre-balance for the same account
+		var preBalance *rpc.TokenBalance
+		for _, pb := range tx.Meta.PreTokenBalances {
+			if pb.AccountIndex == balance.AccountIndex && pb.Mint == balance.Mint {
+				preBalance = &pb
+				break
+			}
+		}
+		
+		// If we found a pre-balance, calculate the difference
+		if preBalance != nil {
+			// Get balances as uint64
+			preAmount, ok := new(big.Int).SetString(preBalance.UITokenAmount.Amount, 10)
+			if !ok {
+				log.Printf("Failed to parse pre-balance amount: %s", preBalance.UITokenAmount.Amount)
+				continue
+			}
+			
+			postAmount, ok := new(big.Int).SetString(balance.UITokenAmount.Amount, 10)
+			if !ok {
+				log.Printf("Failed to parse post-balance amount: %s", balance.UITokenAmount.Amount)
+				continue
+			}
+			
+			// Calculate difference (postAmount - preAmount)
+			diff := new(big.Int).Sub(postAmount, preAmount)
+			
+			// Convert to float with 6 decimals (USDC)
+			amountReceived := convertTokenAmount(diff, usdcDecimals)
+			
+			// Check if the transferred amount matches the expected amount
+			// We allow a small difference to account for potential calculation errors
+			const tolerance = 0.001 // small tolerance for floating point comparison
+			if amountReceived >= expectedAmount-tolerance && amountReceived <= expectedAmount+tolerance {
+				log.Printf("Found matching USDC payment: expected %f, received %f", expectedAmount, amountReceived)
+				return true
+			}
+			
+			log.Printf("Found USDC transfer but amount doesn't match: expected %f, received %f", 
+				expectedAmount, amountReceived)
+		}
 	}
 	
 	return false

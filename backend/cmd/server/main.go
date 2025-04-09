@@ -11,8 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/ncapetillo/demo-fluida/internal/db"
 	"github.com/ncapetillo/demo-fluida/internal/handlers"
 	"github.com/ncapetillo/demo-fluida/internal/services"
+	"github.com/ncapetillo/demo-fluida/internal/solana"
 )
 
 func main() {
@@ -22,11 +24,27 @@ func main() {
 		port = "8080"
 	}
 
+	// Initialize database connection
+	if err := db.Connect(); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
 	// Initialize services
 	invoiceService := services.NewInvoiceService()
 
 	// Initialize handlers
 	invoiceHandler := handlers.NewInvoiceHandler(invoiceService)
+
+	// Initialize and start Solana payment watcher
+	paymentWatcher, err := solana.NewPaymentWatcher()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Solana payment watcher: %v", err)
+		log.Println("Continuing without payment watcher - automatic payment detection will not work")
+	} else {
+		paymentWatcher.Start()
+		defer paymentWatcher.Stop()
+		log.Println("Solana payment watcher started successfully")
+	}
 
 	// Initialize router
 	r := chi.NewRouter()

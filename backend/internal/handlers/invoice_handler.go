@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ncapetillo/demo-fluida/internal/models"
+	"github.com/ncapetillo/demo-fluida/internal/response"
 	"github.com/ncapetillo/demo-fluida/internal/services"
 )
 
@@ -37,22 +38,63 @@ func (h *InvoiceHandler) Routes() chi.Router {
 
 // GetAllInvoices returns all invoices
 func (h *InvoiceHandler) GetAllInvoices(w http.ResponseWriter, r *http.Request) {
-	invoices := h.service.GetAllInvoices()
+	// Parse pagination parameters
+	page := 1
+	limit := 10
 	
-	respondWithJSON(w, http.StatusOK, invoices)
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	
+	invoices := h.service.GetAllInvoices()
+	total := len(invoices)
+	
+	// Calculate pagination
+	start := (page - 1) * limit
+	end := start + limit
+	if start >= total {
+		// Return empty result for out-of-range pages
+		response.New().
+			WithData([]models.Invoice{}).
+			WithPagination(total, page, limit).
+			Send(w, http.StatusOK)
+		return
+	}
+	if end > total {
+		end = total
+	}
+	
+	// Return paginated result
+	response.New().
+		WithData(invoices[start:end]).
+		WithPagination(total, page, limit).
+		Send(w, http.StatusOK)
 }
 
 // GetInvoiceByToken retrieves an invoice by token
 func (h *InvoiceHandler) GetInvoiceByToken(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	
-	invoice, err := h.service.GetInvoiceByToken(token)
-	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Invoice not found")
+	if token == "" {
+		response.BadRequest(w, "Token is required")
 		return
 	}
 	
-	respondWithJSON(w, http.StatusOK, invoice)
+	invoice, err := h.service.GetInvoiceByToken(token)
+	if err != nil {
+		response.NotFound(w, "Invoice not found")
+		return
+	}
+	
+	response.JSON(w, http.StatusOK, invoice)
 }
 
 // CreateInvoice creates a new invoice
@@ -61,7 +103,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	
 	// Decode the request body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload: " + err.Error())
+		response.BadRequest(w, "Invalid request payload: " + err.Error())
 		return
 	}
 	
@@ -69,15 +111,29 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	reqBytes, _ := json.Marshal(req)
 	log.Printf("CreateInvoice request: %s", string(reqBytes))
 	
+	// Validate the request
+	if validationErrors := req.Validate(); len(validationErrors) > 0 {
+		// Convert to response.ValidationError format
+		errors := make([]response.ValidationError, 0, len(validationErrors))
+		for field, message := range validationErrors {
+			errors = append(errors, response.ValidationError{
+				Field:   field,
+				Message: message,
+			})
+		}
+		response.ValidationErrors(w, errors)
+		return
+	}
+	
 	// Create the invoice
 	invoice, err := h.service.CreateInvoice(req)
 	if err != nil {
 		log.Printf("Error creating invoice: %v", err)
-		respondWithError(w, http.StatusBadRequest, "Failed to create invoice: " + err.Error())
+		response.Error(w, http.StatusBadRequest, "Failed to create invoice: " + err.Error(), "creation_failed")
 		return
 	}
 	
-	respondWithJSON(w, http.StatusCreated, invoice)
+	response.JSON(w, http.StatusCreated, invoice)
 }
 
 // UpdateInvoiceStatus updates the status of an invoice
@@ -86,14 +142,14 @@ func (h *InvoiceHandler) UpdateInvoiceStatus(w http.ResponseWriter, r *http.Requ
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid invoice ID")
+		response.BadRequest(w, "Invalid invoice ID")
 		return
 	}
 	
 	// Parse the request body
 	var req models.UpdateInvoiceStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		response.BadRequest(w, "Invalid request payload")
 		return
 	}
 	
@@ -102,30 +158,16 @@ func (h *InvoiceHandler) UpdateInvoiceStatus(w http.ResponseWriter, r *http.Requ
 	case models.StatusPending, models.StatusPaid, models.StatusCanceled:
 		// Valid status
 	default:
-		respondWithError(w, http.StatusBadRequest, "Invalid status value")
+		response.BadRequest(w, "Invalid status value")
 		return
 	}
 	
 	// Update the invoice status
 	invoice, err := h.service.UpdateInvoiceStatus(id, req.Status)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Invoice not found")
+		response.NotFound(w, "Invoice not found")
 		return
 	}
 	
-	respondWithJSON(w, http.StatusOK, invoice)
-}
-
-// Helper to respond with JSON
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
-	
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-// Helper to respond with an error
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, map[string]string{"error": message})
+	response.JSON(w, http.StatusOK, invoice)
 } 

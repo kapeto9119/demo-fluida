@@ -207,6 +207,80 @@ With more time, these areas could be enhanced:
    - Comprehensive test suite
    - CI/CD pipeline
 
+## API-First Approach
+
+This project was developed with an API-first mindset, enabling future extensibility and integrations:
+
+### API Design Principles
+
+- **Resource-Oriented**: APIs are organized around resources (invoices, payments)
+- **Predictable URLs**: Consistent URL patterns (`/api/invoices/{id}`)
+- **Standard HTTP Methods**: Using appropriate HTTP verbs (GET, POST, PUT)
+- **Stateless Interactions**: Each request contains all information needed to process it
+
+### Future API Evolution
+
+The API is designed to evolve through:
+
+1. **Versioning Strategy**: 
+   - Current implicit version is v1
+   - Future versions would use explicit path versioning (`/api/v2/invoices`)
+   - Backward compatibility maintained across versions
+
+2. **Extensibility Points**:
+   - Webhook support for payment notifications
+   - API keys for third-party integrations
+   - Pagination and filtering for resource listing
+   - Bulk operations for invoice management
+
+3. **Potential Integrations**:
+   - Accounting software (QuickBooks, Xero)
+   - Payment processors
+   - ERP systems
+   - CRM platforms
+
+### API Documentation
+
+A full OpenAPI/Swagger specification could be generated to provide:
+- Interactive documentation
+- SDK generation for clients
+- Automated testing of endpoints
+
+## Security Best Practices
+
+The application implements several security best practices, with notes on future enhancements:
+
+### Wallet Key Security
+
+- **Client-Side Only**: Private keys never leave the user's wallet
+- **No Key Storage**: The application never stores private keys
+- **Public Key Validation**: Implemented address validation before accepting transactions
+
+### Data Protection
+
+- **Sensitive Data Handling**: Personal information is validated and sanitized
+- **Future Enhancement**: Implement field-level encryption for sensitive invoice data
+- **Future Enhancement**: Add data retention policies and secure deletion
+
+### API Security
+
+- **Input Validation**: All inputs are validated before processing
+- **Future Enhancement**: Implement JWT-based authentication
+- **Future Enhancement**: Add CORS protection and CSP headers
+- **Future Enhancement**: Implement rate limiting to prevent abuse
+
+### Blockchain Security
+
+- **Transaction Verification**: Multiple validations before confirming transactions
+- **Future Enhancement**: Implement multi-signature support for high-value transactions
+- **Future Enhancement**: Add transaction anomaly detection
+
+### Audit and Compliance
+
+- **Transaction Logging**: All blockchain interactions are logged
+- **Future Enhancement**: Implement comprehensive audit logging for security events
+- **Future Enhancement**: Add compliance reporting for financial regulations
+
 ## Troubleshooting
 
 If you encounter issues:

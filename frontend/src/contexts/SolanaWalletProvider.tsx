@@ -27,7 +27,7 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
     ],
-    [network]
+    [] // Empty dependency array since no variables from the component scope are used
   )
 
   return (
@@ -41,4 +41,4 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
   )
 }
 
-export default SolanaWalletProvider 
+export default SolanaWalletProvider

@@ -78,13 +78,22 @@ export const useInvoicePayment = (token: string) => {
     try {
       // Update invoice status to PAID
       if (invoice) {
-        await apiService.updateInvoiceStatus(invoice.id, 'PAID')
+        // Set local state first for better user experience
+        setPaymentStatus('success')
         setInvoice(prev => prev ? { ...prev, status: 'PAID' } : null)
+        
+        // Then try to update the backend
+        await apiService.updateInvoiceStatus(invoice.id, 'PAID')
+        console.log("Successfully updated invoice status in backend")
+      } else {
+        setPaymentStatus('success')
       }
-      setPaymentStatus('success')
     } catch (error) {
-      console.error('Error updating invoice status:', error)
-      setPaymentStatus('error')
+      console.error('Error updating invoice status in backend:', error)
+      // We still show success to the user since the blockchain transaction succeeded
+      // even if the backend update failed
+      setPaymentStatus('success')
+      throw error // Propagate error for the wallet component to handle
     }
   }
 

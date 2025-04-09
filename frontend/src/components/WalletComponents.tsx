@@ -3,8 +3,8 @@
 import { FC, useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram, Connection, clusterApiUrl } from '@solana/web3.js'
-import { createTransferCheckedInstruction, getAssociatedTokenAddressSync, getAccount, getMint } from '@solana/spl-token'
+import { PublicKey, Transaction, Connection, clusterApiUrl } from '@solana/web3.js'
+import { createTransferCheckedInstruction, getAssociatedTokenAddressSync, getMint } from '@solana/spl-token'
 import { Invoice } from '../types'
 import Button from './ui/Button'
 
@@ -50,8 +50,19 @@ const WalletComponents: FC<WalletComponentsProps> = ({
       // Create connection to devnet
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed')
       
-      // Get receiver's public key
-      const receiverWallet = new PublicKey(invoice.receiverAddr)
+      // Validate receiver wallet address
+      if (!invoice.receiverAddr || invoice.receiverAddr.trim() === '') {
+        throw new Error('Invalid receiver wallet address')
+      }
+      
+      // Get receiver's public key (with validation)
+      let receiverWallet: PublicKey
+      try {
+        receiverWallet = new PublicKey(invoice.receiverAddr)
+      } catch (error) {
+        console.error('Invalid receiver wallet address:', error)
+        throw new Error('Invalid receiver wallet address format')
+      }
       
       // Calculate amount with decimals
       const amount = Math.round(invoice.amount * (10 ** USDC_DECIMALS))
@@ -60,10 +71,21 @@ const WalletComponents: FC<WalletComponentsProps> = ({
       const senderTokenAccount = getAssociatedTokenAddressSync(USDC_MINT, publicKey)
       const receiverTokenAccount = getAssociatedTokenAddressSync(USDC_MINT, receiverWallet)
       
+      console.log('Sender token account:', senderTokenAccount.toString())
+      console.log('Receiver token account:', receiverTokenAccount.toString())
+
+      try {
+        // Check if sender has USDC token account
+        await connection.getTokenAccountBalance(senderTokenAccount)
+      } catch (error) {
+        console.error('Error checking sender token account:', error)
+        throw new Error('You need to create a USDC token account first. Please get some devnet USDC to create the account.')
+      }
+      
       // Get token mint info
       const mintInfo = await getMint(connection, USDC_MINT)
       
-      // Create transfer instruction
+      // Create transfer instruction with minimal keys
       const transferInstruction = createTransferCheckedInstruction(
         senderTokenAccount,
         USDC_MINT,
@@ -73,36 +95,63 @@ const WalletComponents: FC<WalletComponentsProps> = ({
         mintInfo.decimals
       )
       
-      // Add a memo with invoice ID
-      transferInstruction.keys.push({
-        pubkey: new PublicKey(invoice.invoiceNumber),
-        isSigner: false,
-        isWritable: false
-      })
-      
       // Create transaction
       const transaction = new Transaction().add(transferInstruction)
       
       // Set recent blockhash and fee payer
       transaction.feePayer = publicKey
-      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+      const { blockhash } = await connection.getLatestBlockhash('confirmed')
+      transaction.recentBlockhash = blockhash
       
-      // Send transaction
-      const signature = await sendTransaction(transaction, connection)
+      console.log('Transaction prepared, sending to wallet for signing...')
+      
+      // Send transaction with specific options
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      })
+      
+      console.log('Transaction sent, signature:', signature)
       
       // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed')
+      console.log('Waiting for confirmation...')
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight: (await connection.getBlockHeight()) + 150
+      }, 'confirmed')
       
       if (confirmation.value.err) {
-        throw new Error('Transaction failed')
+        console.error('Transaction confirmation error:', confirmation.value.err)
+        throw new Error(`Transaction failed: ${confirmation.value.err}`)
       }
       
       console.log(`Transaction confirmed: ${signature}`)
       
-      // Payment successful
-      onPaymentSuccess()
-    } catch (error) {
+      try {
+        // Payment successful - tell the parent component
+        await onPaymentSuccess()
+        console.log("Invoice status updated successfully")
+      } catch (error) {
+        console.error("Error updating invoice status:", error)
+        // Even if the status update fails, consider the payment successful
+        // since the blockchain transaction was confirmed
+        alert("Payment was successful, but we couldn't update the invoice status. Please refresh the page.")
+      }
+    } catch (error: any) {
       console.error('Payment error:', error)
+      // Provide better error messages to the user
+      let errorMessage = 'Payment failed'
+      
+      if (error.message) {
+        errorMessage = error.message
+      }
+      
+      if (error.name === 'WalletSendTransactionError') {
+        errorMessage = 'Wallet rejected transaction. Make sure you have enough USDC and SOL for fees.'
+      }
+      
+      alert(`Payment error: ${errorMessage}`)
       onPaymentError()
     } finally {
       setIsProcessing(false)

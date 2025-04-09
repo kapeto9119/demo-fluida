@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -60,12 +61,21 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	
 	// Decode the request body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload: " + err.Error())
 		return
 	}
 	
+	// Log the request for debugging
+	reqBytes, _ := json.Marshal(req)
+	log.Printf("CreateInvoice request: %s", string(reqBytes))
+	
 	// Create the invoice
-	invoice := h.service.CreateInvoice(req)
+	invoice, err := h.service.CreateInvoice(req)
+	if err != nil {
+		log.Printf("Error creating invoice: %v", err)
+		respondWithError(w, http.StatusBadRequest, "Failed to create invoice: " + err.Error())
+		return
+	}
 	
 	respondWithJSON(w, http.StatusCreated, invoice)
 }

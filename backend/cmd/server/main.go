@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -10,10 +11,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/ncapetillo/demo-fluida/internal/db"
 	"github.com/ncapetillo/demo-fluida/internal/handlers"
+	"github.com/ncapetillo/demo-fluida/internal/middleware"
 	"github.com/ncapetillo/demo-fluida/internal/repository"
 	"github.com/ncapetillo/demo-fluida/internal/services"
 	"github.com/ncapetillo/demo-fluida/internal/solana"
@@ -67,9 +69,15 @@ func main() {
 	}
 
 	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(30 * time.Second))
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.Timeout(30 * time.Second))
+	
+	// Add our custom security middleware
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.ValidateContentType)
+	
+	// Configure CORS
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -100,7 +108,43 @@ func main() {
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
-		r.Mount("/invoices", invoiceHandler.Routes())
+		// API version 1
+		r.Route("/v1", func(r chi.Router) {
+			// Health check within API namespace
+			r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+				// Check database connection
+				if err := sqlDB.Ping(); err != nil {
+					log.Printf("Health check failed: %v", err)
+					
+					// Return standardized error response
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusServiceUnavailable)
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"error": "Database connection unavailable",
+						"code":  "database_error",
+					})
+					return
+				}
+				
+				// Return standardized success response
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"status": "OK",
+					"version": "1.0.0",
+					"dependencies": map[string]string{
+						"database": "connected",
+					},
+				})
+			})
+			
+			r.Mount("/invoices", invoiceHandler.Routes())
+		})
+		
+		// Redirect legacy API calls to the versioned API
+		r.Mount("/invoices", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/api/v1"+r.URL.Path, http.StatusPermanentRedirect)
+		}))
 	})
 
 	// Create server

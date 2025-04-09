@@ -10,11 +10,12 @@
     "test": "jest"
   },
   "dependencies": {
-    "@solana/wallet-adapter-base": "^0.9.22",
-    "@solana/wallet-adapter-react": "^0.15.32",
-    "@solana/wallet-adapter-react-ui": "^0.9.31",
-    "@solana/wallet-adapter-wallets": "^0.19.16",
-    "@solana/web3.js": "^1.73.3",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/wallet-adapter-base": "^0.9.24",
+    "@solana/wallet-adapter-react": "^0.15.36",
+    "@solana/wallet-adapter-react-ui": "^0.9.36",
+    "@solana/wallet-adapter-wallets": "^0.19.33",
+    "@solana/web3.js": "^1.98.0",
     "axios": "^1.4.0",
     "encoding": "^0.1.13",
     "next": "^13.4.6",

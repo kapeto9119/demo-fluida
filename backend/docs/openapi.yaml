@@ -1,0 +1,426 @@
+openapi: 3.0.3
+info:
+  title: Fluida Invoice Generator API
+  description: |
+    API for creating and managing invoices with cryptocurrency payment integration.
+    This API allows businesses to generate invoices, create payment links, and process USDC payments on Solana.
+  version: 1.0.0
+  contact:
+    name: Fluida Team
+    url: https://fluida.finance
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.fluida.finance
+    description: Production server (future)
+
+tags:
+  - name: Invoices
+    description: Invoice management operations
+  - name: Payments
+    description: Payment processing operations
+  - name: Health
+    description: Health and status checks
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Check API health
+      description: Returns the health status of the API and its dependencies
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  version:
+                    type: string
+                    example: 1.0.0
+                  dependencies:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: connected
+                      blockchain:
+                        type: string
+                        example: connected
+        '503':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/invoices:
+    get:
+      tags:
+        - Invoices
+      summary: List all invoices
+      description: Returns a list of all invoices, optionally filtered by status
+      operationId: listInvoices
+      parameters:
+        - name: status
+          in: query
+          description: Filter invoices by status
+          schema:
+            type: string
+            enum: [PENDING, PAID, CANCELED]
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 42
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - Invoices
+      summary: Create a new invoice
+      description: Creates a new invoice and generates a payment link
+      operationId: createInvoice
+      requestBody:
+        description: Invoice to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/invoices/{id}:
+    get:
+      tags:
+        - Invoices
+      summary: Get invoice by ID
+      description: Returns an invoice by its unique ID
+      operationId: getInvoiceById
+      parameters:
+        - name: id
+          in: path
+          description: Invoice ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/invoices/{id}/status:
+    put:
+      tags:
+        - Invoices
+      summary: Update invoice status
+      description: Updates the status of an invoice
+      operationId: updateInvoiceStatus
+      parameters:
+        - name: id
+          in: path
+          description: Invoice ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        description: New status information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, PAID, CANCELED]
+              required:
+                - status
+      responses:
+        '200':
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/invoices/{token}:
+    get:
+      tags:
+        - Invoices
+      summary: Get invoice by token
+      description: Returns an invoice by its payment link token
+      operationId: getInvoiceByToken
+      parameters:
+        - name: token
+          in: path
+          description: Invoice payment link token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Person:
+      type: object
+      properties:
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        address:
+          type: string
+          example: 123 Main St, New York, NY 10001
+      required:
+        - name
+        - email
+
+    CreateInvoiceRequest:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+          example: INV-2023-001
+        amount:
+          type: number
+          format: float
+          example: 100.50
+        currency:
+          type: string
+          example: USDC
+          default: USDC
+        description:
+          type: string
+          example: Web development services
+        dueDate:
+          type: string
+          format: date
+          example: 2023-12-31
+        receiverAddr:
+          type: string
+          example: 8JQxYTKfELQhAJL4c3jQvnUuNwZWJxsJr7o8G6iTfEV9
+        senderDetails:
+          $ref: '#/components/schemas/Person'
+        recipientDetails:
+          $ref: '#/components/schemas/Person'
+      required:
+        - invoiceNumber
+        - amount
+        - dueDate
+        - receiverAddr
+        - senderDetails
+        - recipientDetails
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        invoiceNumber:
+          type: string
+          example: INV-2023-001
+        amount:
+          type: number
+          format: float
+          example: 100.50
+        currency:
+          type: string
+          example: USDC
+        description:
+          type: string
+          example: Web development services
+        dueDate:
+          type: string
+          format: date-time
+          example: 2023-12-31T23:59:59Z
+        status:
+          type: string
+          enum: [PENDING, PAID, CANCELED]
+          example: PENDING
+        receiverAddr:
+          type: string
+          example: 8JQxYTKfELQhAJL4c3jQvnUuNwZWJxsJr7o8G6iTfEV9
+        linkToken:
+          type: string
+          example: dab43873-f6af-4597-be12-b7fb83beaa85
+        senderDetails:
+          $ref: '#/components/schemas/Person'
+        recipientDetails:
+          $ref: '#/components/schemas/Person'
+        createdAt:
+          type: string
+          format: date-time
+          example: 2023-01-01T12:00:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2023-01-01T12:00:00Z
+      required:
+        - id
+        - invoiceNumber
+        - amount
+        - currency
+        - dueDate
+        - status
+        - receiverAddr
+        - linkToken
+        - senderDetails
+        - recipientDetails
+        - createdAt
+        - updatedAt
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Invalid request parameters
+        code:
+          type: string
+          example: invalid_parameters
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: amount
+              message:
+                type: string
+                example: Amount must be greater than zero
+      required:
+        - error

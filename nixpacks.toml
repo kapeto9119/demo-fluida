@@ -1,0 +1,17 @@
+[phases.setup]
+nixpkgs = ["nodejs", "go", "postgresql"]
+
+[phases.install]
+cmds = [
+  "cd frontend && npm ci",
+  "cd backend && go mod download"
+]
+
+[phases.build]
+cmds = [
+  "cd frontend && npm run build",
+  "cd backend && go build -o app"
+]
+
+[start]
+cmd = "chmod +x railway-startup.sh && ./railway-startup.sh" 

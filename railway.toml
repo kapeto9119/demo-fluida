@@ -1,0 +1,14 @@
+[build]
+builder = "nixpacks"
+buildCommand = ""
+
+[deploy]
+numReplicas = 1
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[deploy.env]
+PORT = "8080"
+FRONTEND_PORT = "3000" 

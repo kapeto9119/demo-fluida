@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ncapetillo/demo-fluida/internal/models"
@@ -129,13 +130,20 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	invoice, err := h.service.CreateInvoice(req)
 	if err != nil {
 		log.Printf("Error creating invoice: %v", err)
-		response.Error(w, http.StatusBadRequest, "Failed to create invoice: " + err.Error(), "creation_failed")
+		
+		// Check if this is a duplicate invoice number error
+		if strings.Contains(err.Error(), "already exists") {
+			response.Error(w, http.StatusConflict, err.Error(), "duplicate_invoice_number")
+			return
+		}
+		
+		// For other errors, don't wrap with "Failed to create invoice:" since that may already be in the message
+		response.Error(w, http.StatusBadRequest, err.Error(), "creation_failed")
 		return
 	}
 	
-	// Log the created invoice for debugging
-	log.Printf("Invoice data returned: %+v", invoice)
-	log.Printf("Link token from response: %s", invoice.LinkToken)
+	// For production, we should only log basic info about the created invoice
+	log.Printf("Invoice #%s created with token: %s", invoice.InvoiceNumber, invoice.LinkToken)
 	
 	// Ensure link token is not empty
 	if invoice.LinkToken == "" {

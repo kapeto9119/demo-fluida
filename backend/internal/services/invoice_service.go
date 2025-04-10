@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/ncapetillo/demo-fluida/internal/db"
@@ -113,7 +114,8 @@ func (s *InvoiceService) CreateInvoice(req models.CreateInvoiceRequest) (models.
 		}
 		
 		if existing != nil {
-			return fmt.Errorf("invoice with number %s already exists", newInvoice.InvoiceNumber)
+			// Return this error directly without additional wrapping
+			return fmt.Errorf("invoice number %s already exists. Please use a different invoice number", newInvoice.InvoiceNumber)
 		}
 		
 		// Create the invoice
@@ -121,6 +123,11 @@ func (s *InvoiceService) CreateInvoice(req models.CreateInvoiceRequest) (models.
 	})
 	
 	if err != nil {
+		// Don't wrap errors that already contain specific messages
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "failed to create invoice") {
+			return models.Invoice{}, err
+		}
+		// Only wrap generic errors
 		return models.Invoice{}, fmt.Errorf("failed to create invoice: %w", err)
 	}
 	

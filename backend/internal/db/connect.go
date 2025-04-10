@@ -139,13 +139,14 @@ func migrateSchema() error {
 	DB.Exec("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
 	
 	// Run auto migrations for all models
-	if err := DB.AutoMigrate(&models.Invoice{}); err != nil {
+	if err := DB.AutoMigrate(&models.Invoice{}, &models.DraftInvoice{}); err != nil {
 		return fmt.Errorf("failed to migrate schema: %v", err)
 	}
 	
 	// Create indexes for better performance
 	DB.Exec("CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoice(status);")
 	DB.Exec("CREATE INDEX IF NOT EXISTS idx_invoices_link_token ON invoice(link_token);")
+	DB.Exec("CREATE INDEX IF NOT EXISTS idx_draft_invoice_user_id ON draft_invoice(user_id);")
 	
 	log.Println("Database schema migrated successfully")
 	return nil

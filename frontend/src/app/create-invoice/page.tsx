@@ -14,10 +14,12 @@ export default function CreateInvoice() {
     createdInvoice,
     error,
     fieldErrors,
+    hasUnsavedChanges,
     handleChange,
     handleSubmit,
     resetForm,
-    getPaymentLink
+    getPaymentLink,
+    clearSavedDraft
   } = useCreateInvoice()
 
   return (
@@ -27,6 +29,20 @@ export default function CreateInvoice() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           {error}
+        </div>
+      )}
+      
+      {/* Show draft notification */}
+      {!createdInvoice && hasUnsavedChanges && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6 flex justify-between items-center">
+          <p>You have an unsaved draft invoice. Your changes are being saved automatically.</p>
+          <button 
+            onClick={clearSavedDraft} 
+            className="text-sm underline hover:no-underline"
+            aria-label="Clear draft"
+          >
+            Clear Draft
+          </button>
         </div>
       )}
       

@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -37,14 +38,15 @@ func RequestLogger(next http.Handler) http.Handler {
 		
 		// Process the request
 		defer func() {
-			// Log the request
-			middleware.GetLogEntry(r).WithFields(map[string]interface{}{
-				"status":   ww.Status(),
-				"duration": time.Since(start).String(),
-				"path":     r.URL.Path,
-				"method":   r.Method,
-				"query":    r.URL.RawQuery,
-			}).Info("Request completed")
+			// Use standard logging for request logging
+			log.Printf(
+				"Request completed: status=%d duration=%s path=%s method=%s query=%s",
+				ww.Status(),
+				time.Since(start).String(),
+				r.URL.Path,
+				r.Method,
+				r.URL.RawQuery,
+			)
 		}()
 		
 		next.ServeHTTP(ww, r)

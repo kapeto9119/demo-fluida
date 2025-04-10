@@ -7,8 +7,8 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adap
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { clusterApiUrl } from '@solana/web3.js'
 
-// Import Solana wallet adapter styles
-import '@solana/wallet-adapter-react-ui/styles.css'
+// Use our local CSS file that doesn't have @import statements
+import '@/styles/wallet-adapter.css'
 
 interface SolanaWalletProviderProps {
   children: ReactNode

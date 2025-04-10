@@ -129,6 +129,82 @@ export const apiService = {
       throw error
     }
   },
+
+  /**
+   * Check if an invoice number already exists
+   */
+  checkInvoiceNumberExists: async (invoiceNumber: string): Promise<boolean> => {
+    try {
+      const response = await api.get(`/invoices/check?invoice_number=${encodeURIComponent(invoiceNumber)}`)
+      // Return the exists flag from the response
+      return response.data.exists || false
+    } catch (error) {
+      console.error(`Error checking if invoice number ${invoiceNumber} exists:`, error)
+      // Default to false in case of error
+      return false
+    }
+  },
+
+  /**
+   * Save draft invoice
+   */
+  saveDraftInvoice: async (userId: string, invoiceData: string): Promise<any> => {
+    try {
+      const response = await api.post('/invoices/drafts', {
+        userId,
+        invoiceData
+      })
+      return response.data.data || response.data
+    } catch (error) {
+      console.error('Error saving draft invoice:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Get draft invoice by user ID
+   */
+  getDraftInvoice: async (userId: string): Promise<any> => {
+    try {
+      const response = await api.get(`/invoices/drafts/${userId}`)
+      return response.data.data || response.data
+    } catch (error: any) {
+      // If not found, return null instead of throwing
+      if (error.response && error.response.status === 404) {
+        return null
+      }
+      console.error(`Error fetching draft invoice for user ${userId}:`, error)
+      throw error
+    }
+  },
+
+  /**
+   * Update draft invoice
+   */
+  updateDraftInvoice: async (id: string, invoiceData: string): Promise<any> => {
+    try {
+      const response = await api.put(`/invoices/drafts/${id}`, {
+        invoiceData
+      })
+      return response.data.data || response.data
+    } catch (error) {
+      console.error(`Error updating draft invoice ${id}:`, error)
+      throw error
+    }
+  },
+
+  /**
+   * Delete draft invoice
+   */
+  deleteDraftInvoice: async (id: string): Promise<any> => {
+    try {
+      const response = await api.delete(`/invoices/drafts/${id}`)
+      return response.data
+    } catch (error) {
+      console.error(`Error deleting draft invoice ${id}:`, error)
+      throw error
+    }
+  }
 }
 
 // Add an interceptor for logging and handling errors

@@ -6,24 +6,23 @@ cmds = [
   "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -",
   "apt-get update",
   "apt-get install -y nodejs",
-  "npm --version",
-  "node --version",
-  "curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz",
-  "tar -C /usr/local -xzf go.tar.gz",
-  "export PATH=$PATH:/usr/local/go/bin",
-  "go version"
+  "npm --version && node --version",
+  "curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz && tar -C /usr/local -xzf go.tar.gz && export PATH=$PATH:/usr/local/go/bin && /usr/local/go/bin/go version"
 ]
+
+[env]
+PATH = "/usr/local/go/bin:${PATH}"
 
 [phases.install]
 cmds = [
   "cd frontend && npm ci",
-  "cd backend && go mod download"
+  "cd backend && /usr/local/go/bin/go mod download"
 ]
 
 [phases.build]
 cmds = [
   "cd frontend && npm run build",
-  "cd backend && go build -o app"
+  "cd backend && /usr/local/go/bin/go build -o app"
 ]
 
 [start]

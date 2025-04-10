@@ -135,7 +135,8 @@ func migrateSchema() error {
 		END IF;
 	END $$;`)
 
-	// Ensure JSONB support is enabled
+	// Ensure UUID and JSONB support is enabled
+	DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
 	DB.Exec("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
 	
 	// Run auto migrations for all models

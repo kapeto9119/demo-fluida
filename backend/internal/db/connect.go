@@ -56,11 +56,21 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 // Connect establishes a connection to the database
 func Connect() (*sql.DB, error) {
-	config := LoadConfigFromEnv()
+	// Check if DATABASE_URL is provided (Railway deployment)
+	databaseURL := os.Getenv("DATABASE_URL")
 	
-	// Connection string
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.Host, config.Port, config.User, config.Password, config.DBName)
+	var dsn string
+	if databaseURL != "" {
+		// Use the complete connection string from Railway
+		dsn = databaseURL
+		log.Println("Using DATABASE_URL for PostgreSQL connection (Railway)")
+	} else {
+		// Use individual connection parameters (local development)
+		config := LoadConfigFromEnv()
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			config.Host, config.Port, config.User, config.Password, config.DBName)
+		log.Println("Using local configuration for PostgreSQL connection")
+	}
 
 	// Connect with retry logic
 	var err error
@@ -90,6 +100,7 @@ func Connect() (*sql.DB, error) {
 	}
 
 	// Configure connection pool
+	config := LoadConfigFromEnv() // Get default config for connection pool settings
 	sqlDB.SetMaxIdleConns(config.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(config.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(config.MaxLifetime)

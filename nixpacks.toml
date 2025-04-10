@@ -1,11 +1,11 @@
 [phases.setup]
-nixpkgs = ["curl", "postgresql"]
+nixpkgs = ["curl", "postgresql", "netcat"]
 
 [phases.prepare]
 cmds = [
   "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -",
   "apt-get update",
-  "apt-get install -y nodejs",
+  "apt-get install -y nodejs netcat",
   "npm --version && node --version",
   "curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz && tar -C /usr/local -xzf go.tar.gz && export PATH=$PATH:/usr/local/go/bin && /usr/local/go/bin/go version"
 ]
@@ -32,5 +32,7 @@ cmd = "chmod +x railway-startup.sh && ./railway-startup.sh"
 numReplicas = 1
 healthcheckPath = "/"
 healthcheckTimeout = 300
+healthcheckInterval = 15
+startupDelay = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10 

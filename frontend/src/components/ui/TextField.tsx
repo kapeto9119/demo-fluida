@@ -16,6 +16,7 @@ interface TextFieldProps {
   readOnly?: boolean
   className?: string
   autoComplete?: string
+  error?: string
 }
 
 /**
@@ -36,7 +37,10 @@ export const TextField = ({
   readOnly = false,
   className = '',
   autoComplete,
+  error,
 }: TextFieldProps) => {
+  const hasError = Boolean(error);
+  
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-gray-700">
@@ -54,10 +58,19 @@ export const TextField = ({
         step={step}
         readOnly={readOnly}
         autoComplete={autoComplete}
-        className={`mt-1 block w-full rounded-md ${
+        className={`mt-1 block w-full rounded-md shadow-sm focus:ring-primary-500 ${
           readOnly ? 'bg-gray-100' : 'border-gray-300'
-        } shadow-sm focus:border-primary-500 focus:ring-primary-500 ${className}`}
+        } ${
+          hasError ? 'border-red-500 focus:border-red-500' : 'focus:border-primary-500'
+        } ${className}`}
+        aria-invalid={hasError}
+        aria-describedby={hasError ? `${id}-error` : undefined}
       />
+      {hasError && (
+        <p id={`${id}-error`} className="mt-1 text-sm text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

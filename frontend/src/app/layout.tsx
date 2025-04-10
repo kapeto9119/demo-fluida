@@ -1,10 +1,23 @@
 import './globals.css'
+import '../styles/wallet-adapter.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import React from 'react'
 import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
+import { Inter, DM_Sans } from 'next/font/google'
 
-const inter = Inter({ subsets: ['latin'] })
+// Initialize the fonts
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const dmSans = DM_Sans({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Fluida - Invoice & Payment Link Generator',
@@ -17,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={`${inter.variable} ${dmSans.variable}`}>
+      <body className="font-sans">
         <SolanaWalletProvider>
           <main className="min-h-screen bg-gray-50">
             {children}

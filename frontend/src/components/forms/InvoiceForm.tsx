@@ -10,6 +10,7 @@ interface InvoiceFormProps {
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   handleSubmit: (e: React.FormEvent) => void
   isLoading: boolean
+  fieldErrors?: Record<string, string>
 }
 
 /**
@@ -20,7 +21,8 @@ export const InvoiceForm = ({
   formData,
   handleChange,
   handleSubmit,
-  isLoading
+  isLoading,
+  fieldErrors = {}
 }: InvoiceFormProps) => {
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-6">
@@ -36,6 +38,7 @@ export const InvoiceForm = ({
             value={formData.invoiceNumber}
             onChange={handleChange}
             required
+            error={fieldErrors.invoiceNumber}
           />
           
           <div className="grid grid-cols-2 gap-4">
@@ -49,6 +52,7 @@ export const InvoiceForm = ({
               min={0}
               step="0.01"
               required
+              error={fieldErrors.amount}
             />
             
             <TextField
@@ -58,6 +62,7 @@ export const InvoiceForm = ({
               value={formData.currency}
               onChange={handleChange}
               readOnly
+              error={fieldErrors.currency}
             />
           </div>
           
@@ -79,6 +84,7 @@ export const InvoiceForm = ({
               onChange={handleChange}
               type="date"
               required
+              error={fieldErrors.dueDate}
             />
             
             <TextField
@@ -89,6 +95,7 @@ export const InvoiceForm = ({
               onChange={handleChange}
               placeholder="Solana wallet address to receive payment"
               required
+              error={fieldErrors.receiverAddr}
             />
           </div>
         </div>
@@ -104,6 +111,7 @@ export const InvoiceForm = ({
             value={formData.senderDetails.name}
             onChange={handleChange}
             required
+            error={fieldErrors['senderDetails.name']}
           />
           
           <TextField
@@ -114,6 +122,7 @@ export const InvoiceForm = ({
             onChange={handleChange}
             type="email"
             required
+            error={fieldErrors['senderDetails.email']}
           />
           
           <TextArea
@@ -137,6 +146,7 @@ export const InvoiceForm = ({
             value={formData.recipientDetails.name}
             onChange={handleChange}
             required
+            error={fieldErrors['recipientDetails.name']}
           />
           
           <TextField
@@ -147,6 +157,7 @@ export const InvoiceForm = ({
             onChange={handleChange}
             type="email"
             required
+            error={fieldErrors['recipientDetails.email']}
           />
           
           <TextArea

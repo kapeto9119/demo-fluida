@@ -7,21 +7,22 @@ cmds = [
   "apt-get update",
   "apt-get install -y nodejs netcat",
   "npm --version && node --version",
-  "curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz && tar -C /usr/local -xzf go.tar.gz && export PATH=$PATH:/usr/local/go/bin && /usr/local/go/bin/go version"
+  "curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz && tar -C /usr/local -xzf go.tar.gz && export PATH=$PATH:/usr/local/go/bin && /usr/local/go/bin/go version",
+  "chmod +x frontend-build.sh"
 ]
 
 [env]
 PATH = "/usr/local/go/bin:${PATH}"
+NODE_ENV = "production"
 
 [phases.install]
 cmds = [
-  "cd frontend && npm ci",
   "cd backend && /usr/local/go/bin/go mod download"
 ]
 
 [phases.build]
 cmds = [
-  "cd frontend && npm run build",
+  "./frontend-build.sh",
   "cd backend && /usr/local/go/bin/go build -o app ./cmd/server"
 ]
 

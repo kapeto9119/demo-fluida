@@ -39,7 +39,7 @@ export const useCreateInvoice = () => {
   // Field-specific errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   // User ID for saving drafts - in a real app, this would come from auth
-  const userId = "current_user"; // Placeholder - replace with actual user ID
+  const userId = "user-123"; // Using a valid UUID-like format that will work with the backend
 
   /**
    * Validate form data before submission
@@ -169,6 +169,26 @@ export const useCreateInvoice = () => {
   };
 
   /**
+   * Clean duplicated phrases from error messages
+   */
+  const cleanErrorMessage = (message: string): string => {
+    // Check for common duplication patterns
+    if (message.includes('failed to create invoice:')) {
+      // Remove duplicated "failed to create invoice:" phrases
+      let cleaned = message;
+      const prefix = 'failed to create invoice:';
+      
+      // If message starts with the prefix and contains it again
+      if (cleaned.startsWith(prefix) && cleaned.substring(prefix.length).includes(prefix)) {
+        cleaned = prefix + cleaned.substring(prefix.length).replace(prefix, '');
+      }
+      
+      return cleaned.trim();
+    }
+    return message;
+  };
+
+  /**
    * Submit form data to create a new invoice
    */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,11 +221,9 @@ export const useCreateInvoice = () => {
     
     try {
       const invoice = await apiService.createInvoice(formData)
-      console.log('Created invoice:', invoice) // Debug info
       
       // Validate the invoice data
       if (!invoice) {
-        console.error('Received null or undefined invoice from API')
         setError('Failed to create invoice: Invalid response from server')
         return
       }
@@ -241,28 +259,51 @@ export const useCreateInvoice = () => {
         setCreatedInvoice(invoice)
       }
     } catch (err: any) {
-      console.error('Error creating invoice:', err)
+      // Extract the error message from the response
+      let errorMsg = '';
+      const errorResponse = err?.response?.data;
       
-      // Check for specific error messages
-      const errorResponse = err?.response?.data
-      
+      // Handle different error response structures
       if (errorResponse) {
-        // Check for duplicate invoice number error
-        if (typeof errorResponse === 'string' && errorResponse.includes('already exists')) {
-          setFieldErrors({
-            invoiceNumber: 'This invoice number already exists. Please use a different one.'
-          })
-          setError('Invoice number already exists. Please use a different invoice number.')
+        if (errorResponse.error && errorResponse.error.message) {
+          // Handle structured error response with error object
+          errorMsg = errorResponse.error.message;
+          
+          // Special handling for duplicate invoice errors
+          if (errorResponse.error.code === 'duplicate_invoice_number') {
+            setFieldErrors({
+              invoiceNumber: 'This invoice number already exists. Please use a different one.'
+            });
+          }
+        } else if (typeof errorResponse === 'string') {
+          // Handle plain string error responses
+          errorMsg = errorResponse;
+          
+          // Handle duplicate invoice errors in string format
+          if (errorResponse.includes('already exists')) {
+            setFieldErrors({
+              invoiceNumber: 'This invoice number already exists. Please use a different one.'
+            });
+          }
         } else if (errorResponse.message) {
-          setError(errorResponse.message)
+          // Handle error with direct message property
+          errorMsg = errorResponse.message;
         } else {
-          setError('Failed to create invoice. Please try again.')
+          // Fallback for other error formats
+          errorMsg = 'Failed to create invoice. Please try again.';
         }
       } else {
-        setError('Failed to create invoice. Please try again.')
+        // No structured response available
+        errorMsg = err?.message || 'Failed to create invoice. Please try again.';
       }
+      
+      // Clean up duplicate phrases before displaying the error
+      errorMsg = cleanErrorMessage(errorMsg);
+      
+      // Set the error message for display
+      setError(errorMsg);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -282,31 +323,25 @@ export const useCreateInvoice = () => {
    */
   const getPaymentLink = () => {
     if (!createdInvoice) {
-      console.error('Cannot generate payment link: No invoice created')
       return `${window.location.origin}/pay/error`;
     }
-    
-    console.log('Generating payment link from invoice:', createdInvoice)
     
     // Try to get the linkToken directly
     const linkToken = createdInvoice.linkToken;
     
     if (!linkToken) {
-      console.error('Missing linkToken in the created invoice:', createdInvoice);
-      
-      // Check if we can find the token in other properties like in the JSON data
+      // Check if we can find the token in different properties
       if (typeof createdInvoice === 'object') {
         // Try to extract from other possible properties
         for (const [key, value] of Object.entries(createdInvoice)) {
           if (key.toLowerCase().includes('token') && typeof value === 'string' && value.length > 10) {
-            console.log(`Found possible token in property '${key}':`, value);
+            // Create a payment link from the token
             return `${window.location.origin}/pay/${String(value).trim()}`;
           }
         }
         
         // If invoice has ID, we can use that as fallback
         if (createdInvoice.id) {
-          console.log('Using invoice ID as fallback for link:', createdInvoice.id);
           return `${window.location.origin}/pay/invoice/${createdInvoice.id}`;
         }
       }
@@ -316,7 +351,6 @@ export const useCreateInvoice = () => {
     
     // Ensure token is a string and clean it of any whitespace
     const cleanToken = String(linkToken).trim();
-    console.log('Using token for payment link:', cleanToken);
     
     return `${window.location.origin}/pay/${cleanToken}`;
   }

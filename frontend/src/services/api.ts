@@ -49,19 +49,16 @@ export const apiService = {
    */
   getInvoiceByToken: async (token: string): Promise<Invoice> => {
     try {
-      console.log(`Fetching invoice with token: ${token}`)
       // In case the token might need URL encoding
       const encodedToken = encodeURIComponent(token)
-      console.log(`Encoded token: ${encodedToken}`)
       
       // The API endpoint expects /{linkToken}
       const response = await api.get(`/invoices/${encodedToken}`)
       
-      console.log('API Response for token lookup:', response)
       // Handle both wrapped and unwrapped responses
       return response.data.data || response.data
     } catch (error) {
-      console.error(`Error fetching invoice by token ${token}:`, error)
+      // In production, we should not log sensitive data
       throw error
     }
   },
@@ -78,41 +75,14 @@ export const apiService = {
         dueDate: new Date(invoiceData.dueDate).toISOString(),
       }
       
-      console.log('Sending invoice data to backend:', dataToSubmit)
+      // In production, we should not log the entire payload with sensitive data
       const response = await api.post('/invoices', dataToSubmit)
       
-      // Log the response to see its structure
-      console.log('API Response:', response)
-      
-      // Check if the response is wrapped in a 'data' property (standard backend wrapper)
-      const responseData = response.data.data || response.data;
-      
-      console.log('Unwrapped invoice data:', responseData)
-      console.log('Link token from unwrapped data:', responseData.linkToken)
-      
-      // Return the unwrapped data
-      return responseData
+      // Return unwrapped data
+      return response.data.data || response.data
     } catch (error: any) {
-      console.error('Error creating invoice:', error)
-      
-      // Check for specific API error messages in the response
-      if (error.response) {
-        const errorData = error.response.data;
-        
-        // Log detailed error information
-        console.error('API Error Response:', {
-          status: error.response.status,
-          data: errorData,
-          statusText: error.response.statusText
-        })
-        
-        // If the error response contains a message about duplicate invoice
-        if (typeof errorData === 'string' && errorData.includes('already exists')) {
-          throw new Error(errorData);
-        }
-      }
-      
-      throw error;
+      // In production, we should not log the raw error which might contain sensitive data
+      throw error
     }
   },
 
@@ -148,11 +118,11 @@ export const apiService = {
   /**
    * Save draft invoice
    */
-  saveDraftInvoice: async (userId: string, invoiceData: string): Promise<any> => {
+  saveDraftInvoice: async (userId: string, draftData: any): Promise<any> => {
     try {
       const response = await api.post('/invoices/drafts', {
-        userId,
-        invoiceData
+        UserID: userId,
+        InvoiceData: draftData
       })
       return response.data.data || response.data
     } catch (error) {
@@ -184,7 +154,7 @@ export const apiService = {
   updateDraftInvoice: async (id: string, invoiceData: string): Promise<any> => {
     try {
       const response = await api.put(`/invoices/drafts/${id}`, {
-        invoiceData
+        InvoiceData: invoiceData
       })
       return response.data.data || response.data
     } catch (error) {
@@ -211,21 +181,23 @@ export const apiService = {
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('API Error Response:', {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers,
-      })
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('API Error Request:', error.request)
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('API Error Setup:', error.message)
+    // In production, we should implement proper error logging
+    // but avoid sensitive data exposure
+    
+    if (process.env.NODE_ENV !== 'production') {
+      // Only log detailed errors in development
+      if (error.response) {
+        console.error('API Error:', {
+          status: error.response.status,
+          endpoint: error.config?.url
+        })
+      } else if (error.request) {
+        console.error('API Request Error - No Response')
+      } else {
+        console.error('API Setup Error:', error.message)
+      }
     }
+    
     return Promise.reject(error)
   }
 )

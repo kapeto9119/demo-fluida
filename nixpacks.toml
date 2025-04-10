@@ -22,7 +22,7 @@ cmds = [
 [phases.build]
 cmds = [
   "cd frontend && npm run build",
-  "cd backend && /usr/local/go/bin/go build -o app"
+  "cd backend && /usr/local/go/bin/go build -o app ./cmd/server"
 ]
 
 [start]

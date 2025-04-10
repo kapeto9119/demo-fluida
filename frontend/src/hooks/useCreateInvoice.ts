@@ -38,6 +38,68 @@ export const useCreateInvoice = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   /**
+   * Validate form data before submission
+   * @returns An object with field errors, or empty object if valid
+   */
+  const validateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    // Validate invoice number
+    if (!formData.invoiceNumber.trim()) {
+      errors.invoiceNumber = 'Invoice number is required';
+    } else if (formData.invoiceNumber.length > 50) {
+      errors.invoiceNumber = 'Invoice number must be less than 50 characters';
+    }
+    
+    // Validate amount
+    if (!formData.amount || formData.amount <= 0) {
+      errors.amount = 'Amount must be greater than zero';
+    }
+    
+    // Validate receiver wallet address
+    if (!formData.receiverAddr.trim()) {
+      errors.receiverAddr = 'Receiver wallet address is required';
+    } else if (formData.receiverAddr.length < 32 || formData.receiverAddr.length > 100) {
+      errors.receiverAddr = 'Invalid Solana wallet address format';
+    }
+    
+    // Validate due date
+    const dueDate = new Date(formData.dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+    
+    if (!formData.dueDate) {
+      errors.dueDate = 'Due date is required';
+    } else if (dueDate < today) {
+      errors.dueDate = 'Due date cannot be in the past';
+    }
+    
+    // Validate sender details
+    if (!formData.senderDetails.name.trim()) {
+      errors['senderDetails.name'] = 'Sender name is required';
+    }
+    
+    if (!formData.senderDetails.email.trim()) {
+      errors['senderDetails.email'] = 'Sender email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.senderDetails.email)) {
+      errors['senderDetails.email'] = 'Invalid email format';
+    }
+    
+    // Validate recipient details
+    if (!formData.recipientDetails.name.trim()) {
+      errors['recipientDetails.name'] = 'Recipient name is required';
+    }
+    
+    if (!formData.recipientDetails.email.trim()) {
+      errors['recipientDetails.email'] = 'Recipient email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.recipientDetails.email)) {
+      errors['recipientDetails.email'] = 'Invalid email format';
+    }
+    
+    return errors;
+  };
+
+  /**
    * Handle input changes, including nested properties
    */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -66,6 +128,15 @@ export const useCreateInvoice = () => {
     setIsLoading(true)
     setError(null)
     setFieldErrors({})
+    
+    // Validate form before submission
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setError('Please fix the errors in the form before submitting');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       const invoice = await apiService.createInvoice(formData)

@@ -177,6 +177,55 @@ type CreateInvoiceRequest struct {
 	RecipientDetails Person    `json:"recipientDetails"`
 }
 
+// Validate performs validation on the CreateInvoiceRequest
+func (r *CreateInvoiceRequest) Validate() map[string]string {
+	errors := make(map[string]string)
+	
+	// Validate invoice number
+	if r.InvoiceNumber == "" {
+		errors["invoiceNumber"] = "Invoice number is required"
+	} else if len(r.InvoiceNumber) > 50 {
+		errors["invoiceNumber"] = "Invoice number must be less than 50 characters"
+	}
+	
+	// Validate amount
+	if r.Amount <= 0 {
+		errors["amount"] = "Amount must be greater than zero"
+	}
+	
+	// Validate receiver address
+	if r.ReceiverAddr == "" {
+		errors["receiverAddr"] = "Receiver wallet address is required"
+	} else if len(r.ReceiverAddr) < 32 || len(r.ReceiverAddr) > 100 {
+		errors["receiverAddr"] = "Invalid Solana wallet address format"
+	}
+	
+	// Validate due date
+	if r.DueDate.IsZero() {
+		errors["dueDate"] = "Due date is required"
+	} else if r.DueDate.Before(time.Now()) {
+		errors["dueDate"] = "Due date cannot be in the past"
+	}
+	
+	// Validate sender details
+	if r.SenderDetails.Name == "" {
+		errors["senderDetails.name"] = "Sender name is required"
+	}
+	if r.SenderDetails.Email == "" {
+		errors["senderDetails.email"] = "Sender email is required"
+	}
+	
+	// Validate recipient details
+	if r.RecipientDetails.Name == "" {
+		errors["recipientDetails.name"] = "Recipient name is required"
+	}
+	if r.RecipientDetails.Email == "" {
+		errors["recipientDetails.email"] = "Recipient email is required"
+	}
+	
+	return errors
+}
+
 // UpdateInvoiceStatusRequest represents the data required to update an invoice status
 type UpdateInvoiceStatusRequest struct {
 	Status InvoiceStatus `json:"status" binding:"required"`

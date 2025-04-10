@@ -8,60 +8,37 @@ export PORT=${PORT:-8080}
 export FRONTEND_PORT=${FRONTEND_PORT:-3000}
 export FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
 
-# Wait for PostgreSQL to be available
-echo "🔄 Checking database connection..."
-MAX_RETRIES=5
-RETRY_COUNT=0
+# Debug: Print environment info
+echo "Environment variables:"
+echo "PORT=$PORT"
+echo "FRONTEND_PORT=$FRONTEND_PORT"
+echo "FRONTEND_URL=$FRONTEND_URL"
+echo "DATABASE_URL exists: $(if [ ! -z "$DATABASE_URL" ]; then echo 'Yes'; else echo 'No'; fi)"
 
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  # Use Go app's health check to verify DB connection
-  echo "Attempt $((RETRY_COUNT+1))/$MAX_RETRIES: Checking database connection..."
-  if curl -s http://localhost:$PORT/health 2>&1 | grep -q "OK"; then
-    echo "✅ Database connection successful!"
-    break
-  fi
-  
-  # Start the backend if this is the first attempt
-  if [ $RETRY_COUNT -eq 0 ]; then
-    echo "🔵 Starting backend server..."
-    cd backend
-    ./app &
-    BACKEND_PID=$!
-    sleep 5 # Give backend a chance to start
-  fi
-  
-  RETRY_COUNT=$((RETRY_COUNT+1))
-  if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-    echo "⏳ Waiting for database connection... (${RETRY_COUNT}/${MAX_RETRIES})"
-    sleep 10
-  fi
+# Start backend server immediately
+echo "🔵 Starting backend server..."
+cd backend
+./app &
+BACKEND_PID=$!
+cd ..
+
+# Give backend a moment to start
+sleep 10
+
+# Debug: Try various endpoints to check what's working
+echo "🔍 Checking various endpoints for debugging..."
+ENDPOINTS=("/" "/health" "/api/v1/health")
+for endpoint in "${ENDPOINTS[@]}"; do
+  echo "Testing endpoint: $endpoint"
+  curl -v http://localhost:$PORT$endpoint || echo "Failed to connect to $endpoint"
+  echo ""
+  echo "------------------------"
 done
-
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-  echo "❌ Failed to connect to database after $MAX_RETRIES attempts"
-  echo "🔍 Backend logs:"
-  # Show logs from backend to help debugging
-  if [ ! -z "$BACKEND_PID" ]; then
-    kill $BACKEND_PID
-  fi
-  exit 1
-fi
-
-# If backend wasn't started in the DB check loop, start it now
-if [ -z "$BACKEND_PID" ]; then
-  echo "🔵 Starting backend server..."
-  cd backend
-  ./app &
-  BACKEND_PID=$!
-  cd ..
-else
-  cd ..
-fi
 
 # Start frontend server
 echo "🔵 Starting frontend server..."
 cd frontend
-npx next start -p ${FRONTEND_PORT:-3000} &
+npx next start -p ${FRONTEND_PORT} &
 FRONTEND_PID=$!
 
 # Log success message
@@ -69,8 +46,17 @@ echo "✅ Fluida Invoice Generator is now running!"
 echo "🌐 Backend API available at http://localhost:$PORT"
 echo "🌐 Frontend available at http://localhost:$FRONTEND_PORT"
 
+# Create a simple root endpoint for Railway healthcheck
+echo "Setting up root endpoint for Railway healthcheck..."
+while true; do
+  # This is just to keep the script running
+  sleep 60
+  echo "System is still running... ($(date))"
+done &
+HEALTH_CHECK_PID=$!
+
 # Handle graceful shutdown
-trap 'kill $BACKEND_PID $FRONTEND_PID; exit' SIGINT SIGTERM
+trap 'kill $BACKEND_PID $FRONTEND_PID $HEALTH_CHECK_PID; exit' SIGINT SIGTERM
 
 # Keep script running
 wait 

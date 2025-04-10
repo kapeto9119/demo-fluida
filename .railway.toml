@@ -3,8 +3,4 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "chmod +x railway-startup.sh && ./railway-startup.sh"
-healthcheckPath = "/"
-healthcheckTimeout = 300
-healthcheckInterval = 15  # seconds between checks
-startupDelay = 30         # give the app 30 seconds to start before checking
 restartPolicyType = "on_failure" 

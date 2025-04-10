@@ -3,16 +3,7 @@ set -e
 
 echo "🚀 Starting Fluida Invoice Generator on Railway"
 
-# Create a temporary healthcheck endpoint on port 80 (Railway default)
-echo "Creating temporary healthcheck endpoint..."
-(
-  while true; do
-    echo -e "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK" | nc -l -p 80 -q 1 || true
-  done
-) &
-TEMP_HEALTH_PID=$!
-
-# Set environment variables if not already set
+# Get PORT variable from environment
 export PORT=${PORT:-8080}
 export FRONTEND_PORT=${FRONTEND_PORT:-3000}
 export FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
@@ -25,39 +16,39 @@ echo "FRONTEND_URL=$FRONTEND_URL"
 echo "DATABASE_URL exists: $(if [ ! -z "$DATABASE_URL" ]; then echo 'Yes'; else echo 'No'; fi)"
 
 # Start backend server
-echo "🔵 Starting backend server..."
+echo "🔵 Starting backend server in background..."
 cd backend
-./app &
+./app > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
-# Debug: Try various endpoints to check what's working
-echo "🔍 Checking various endpoints for debugging..."
-sleep 10  # Give backend time to start
+# Wait for backend to initialize
+echo "Waiting for backend to initialize..."
+sleep 5
 
 # Start frontend server
 echo "🔵 Starting frontend server..."
 cd frontend
-npx next start -p ${FRONTEND_PORT} &
+npx next start -p ${FRONTEND_PORT} > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!
+cd ..
 
 # Log success message
 echo "✅ Fluida Invoice Generator is now running!"
 echo "🌐 Backend API available at http://localhost:$PORT"
 echo "🌐 Frontend available at http://localhost:$FRONTEND_PORT"
 
-# Kill temporary health server
-kill $TEMP_HEALTH_PID || true
-
-# Keep script running with simple output every minute
+# Keep script running with status updates
 while true; do
   sleep 60
   echo "System is still running... ($(date))"
+  echo "Backend status: $(if kill -0 $BACKEND_PID 2>/dev/null; then echo 'Running'; else echo 'Stopped'; fi)"
+  echo "Frontend status: $(if kill -0 $FRONTEND_PID 2>/dev/null; then echo 'Running'; else echo 'Stopped'; fi)"
 done &
-HEALTH_CHECK_PID=$!
+STATUS_CHECK_PID=$!
 
 # Handle graceful shutdown
-trap 'kill $BACKEND_PID $FRONTEND_PID $HEALTH_CHECK_PID; exit' SIGINT SIGTERM
+trap 'kill $BACKEND_PID $FRONTEND_PID $STATUS_CHECK_PID; exit' SIGINT SIGTERM
 
 # Keep script running
 wait 

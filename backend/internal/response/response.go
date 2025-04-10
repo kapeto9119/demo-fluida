@@ -104,6 +104,14 @@ func (r *Response) Send(w http.ResponseWriter, statusCode int) {
 
 // JSON sends a JSON response with the given status code
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	// Debug the response payload
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error marshalling response data: %v", err)
+	} else {
+		log.Printf("Response payload: %s", string(dataBytes))
+	}
+	
 	New().WithData(data).Send(w, statusCode)
 }
 

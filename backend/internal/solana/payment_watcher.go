@@ -178,7 +178,7 @@ func (pw *PaymentWatcher) checkForPayment(ctx context.Context, invoice models.In
 			ctx, 
 			txSig,
 			&rpc.GetTransactionOpts{
-				Encoding: solana.EncodingJSON,
+				Encoding: solana.EncodingJSONParsed,
 			},
 		)
 		if err != nil {

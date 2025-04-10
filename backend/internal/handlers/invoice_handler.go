@@ -133,6 +133,16 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Log the created invoice for debugging
+	log.Printf("Invoice data returned: %+v", invoice)
+	log.Printf("Link token from response: %s", invoice.LinkToken)
+	
+	// Ensure link token is not empty
+	if invoice.LinkToken == "" {
+		log.Printf("WARNING: LinkToken is empty in the created invoice!")
+	}
+	
+	// Return the created invoice with status 201 Created
 	response.JSON(w, http.StatusCreated, invoice)
 }
 

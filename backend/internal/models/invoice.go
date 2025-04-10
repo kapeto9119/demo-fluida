@@ -75,7 +75,7 @@ type Invoice struct {
 	DueDate          time.Time      `json:"dueDate" gorm:"not null;index:idx_invoice_due_date"`
 	Status           InvoiceStatus  `json:"status" gorm:"not null;default:PENDING;type:varchar(20);index:idx_invoice_status"`
 	ReceiverAddr     string         `json:"receiverAddr" gorm:"not null;type:varchar(100);index:idx_invoice_receiver"`
-	LinkToken        string         `json:"linkToken,omitempty" gorm:"uniqueIndex:idx_invoice_link;not null;type:varchar(100)"`
+	LinkToken        string         `json:"linkToken" gorm:"uniqueIndex:idx_invoice_link;not null;type:varchar(100)"`
 	SenderDetails    Person         `json:"senderDetails" gorm:"type:jsonb;serializer:json"`
 	RecipientDetails Person         `json:"recipientDetails" gorm:"type:jsonb;serializer:json"`
 	CreatedAt        time.Time      `json:"createdAt" gorm:"autoCreateTime;index:idx_invoice_created_at"`

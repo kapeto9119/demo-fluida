@@ -12,6 +12,9 @@ interface InvoiceTableProps {
  * Component to display invoices in a table format
  */
 export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
+  // Make sure invoices is an array
+  const invoiceList = Array.isArray(invoices) ? invoices : [];
+  
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -39,7 +42,7 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {invoices.map((invoice) => (
+            {invoiceList.map((invoice) => (
               <tr key={invoice.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{invoice.invoiceNumber}</div>
@@ -70,7 +73,7 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
                 </td>
               </tr>
             ))}
-            {invoices.length === 0 && (
+            {invoiceList.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
                   No invoices found

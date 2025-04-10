@@ -11,6 +11,9 @@ import Button from '../../components/ui/Button'
  */
 export default function InvoicesList() {
   const { invoices, loading, error, formatDate } = useInvoices()
+  
+  // Ensure invoices is always an array
+  const invoicesList = Array.isArray(invoices) ? invoices : [];
 
   if (loading) {
     return (
@@ -35,7 +38,7 @@ export default function InvoicesList() {
         </div>
       )}
 
-      {invoices.length === 0 ? (
+      {invoicesList.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
           <p className="text-gray-600">No invoices found.</p>
           <Link href="/create-invoice" className="text-primary-600 underline mt-2 inline-block">
@@ -43,7 +46,7 @@ export default function InvoicesList() {
           </Link>
         </div>
       ) : (
-        <InvoiceTable invoices={invoices} formatDate={formatDate} />
+        <InvoiceTable invoices={invoicesList} formatDate={formatDate} />
       )}
     </div>
   )

@@ -13,6 +13,7 @@ export default function CreateInvoice() {
     isLoading,
     createdInvoice,
     error,
+    fieldErrors,
     handleChange,
     handleSubmit,
     resetForm,
@@ -54,6 +55,20 @@ export default function CreateInvoice() {
                 Copy
               </button>
             </div>
+            
+            {/* Debugging information */}
+            <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-500">
+              <p><strong>Debug - Link Token:</strong> {createdInvoice.linkToken || 'Not available'}</p>
+              <p><strong>Debug - Generated URL:</strong> {getPaymentLink()}</p>
+              <p><strong>Debug - Invoice ID:</strong> {createdInvoice.id}</p>
+              <details>
+                <summary className="cursor-pointer">Show raw invoice data</summary>
+                <pre className="mt-1 overflow-auto max-h-32">
+                  {JSON.stringify(createdInvoice, null, 2)}
+                </pre>
+              </details>
+            </div>
+            
             <div className="mt-4">
               <a
                 href={getPaymentLink()}
@@ -78,6 +93,7 @@ export default function CreateInvoice() {
           handleChange={handleChange}
           handleSubmit={handleSubmit}
           isLoading={isLoading}
+          fieldErrors={fieldErrors}
         />
       )}
     </div>

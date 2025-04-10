@@ -90,38 +90,3 @@ func validateSolanaAddress(field, value string, errors ValidationErrors) {
 		errors[field] = "Invalid Solana wallet address"
 	}
 }
-
-// Validate returns validation errors for a CreateInvoiceRequest
-func (r *CreateInvoiceRequest) Validate() ValidationErrors {
-	errors := make(ValidationErrors)
-	
-	// Validate required fields
-	validateRequired("invoiceNumber", r.InvoiceNumber, errors)
-	validateMinValue("amount", r.Amount, 0.01, errors)
-	validateRequired("receiverAddr", r.ReceiverAddr, errors)
-	validateSolanaAddress("receiverAddr", r.ReceiverAddr, errors)
-	
-	// Validate sender details
-	validateRequired("senderDetails.name", r.SenderDetails.Name, errors)
-	validateRequired("senderDetails.email", r.SenderDetails.Email, errors)
-	validateEmail("senderDetails.email", r.SenderDetails.Email, errors)
-	
-	// Validate recipient details
-	validateRequired("recipientDetails.name", r.RecipientDetails.Name, errors)
-	validateRequired("recipientDetails.email", r.RecipientDetails.Email, errors)
-	validateEmail("recipientDetails.email", r.RecipientDetails.Email, errors)
-	
-	// Validate due date
-	if r.DueDate.IsZero() {
-		errors["dueDate"] = "Due date is required"
-	} else {
-		dueDate, err := time.Parse(time.RFC3339, r.DueDate.Format(time.RFC3339))
-		if err != nil {
-			errors["dueDate"] = "Invalid date format"
-		} else if dueDate.Before(time.Now()) {
-			errors["dueDate"] = "Due date must be in the future"
-		}
-	}
-	
-	return errors
-}

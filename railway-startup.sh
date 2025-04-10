@@ -3,6 +3,15 @@ set -e
 
 echo "🚀 Starting Fluida Invoice Generator on Railway"
 
+# Create a temporary healthcheck endpoint on port 80 (Railway default)
+echo "Creating temporary healthcheck endpoint..."
+(
+  while true; do
+    echo -e "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK" | nc -l -p 80 -q 1 || true
+  done
+) &
+TEMP_HEALTH_PID=$!
+
 # Set environment variables if not already set
 export PORT=${PORT:-8080}
 export FRONTEND_PORT=${FRONTEND_PORT:-3000}
@@ -15,25 +24,16 @@ echo "FRONTEND_PORT=$FRONTEND_PORT"
 echo "FRONTEND_URL=$FRONTEND_URL"
 echo "DATABASE_URL exists: $(if [ ! -z "$DATABASE_URL" ]; then echo 'Yes'; else echo 'No'; fi)"
 
-# Start backend server immediately
+# Start backend server
 echo "🔵 Starting backend server..."
 cd backend
 ./app &
 BACKEND_PID=$!
 cd ..
 
-# Give backend a moment to start
-sleep 10
-
 # Debug: Try various endpoints to check what's working
 echo "🔍 Checking various endpoints for debugging..."
-ENDPOINTS=("/" "/health" "/api/v1/health")
-for endpoint in "${ENDPOINTS[@]}"; do
-  echo "Testing endpoint: $endpoint"
-  curl -v http://localhost:$PORT$endpoint || echo "Failed to connect to $endpoint"
-  echo ""
-  echo "------------------------"
-done
+sleep 10  # Give backend time to start
 
 # Start frontend server
 echo "🔵 Starting frontend server..."
@@ -46,10 +46,11 @@ echo "✅ Fluida Invoice Generator is now running!"
 echo "🌐 Backend API available at http://localhost:$PORT"
 echo "🌐 Frontend available at http://localhost:$FRONTEND_PORT"
 
-# Create a simple root endpoint for Railway healthcheck
-echo "Setting up root endpoint for Railway healthcheck..."
+# Kill temporary health server
+kill $TEMP_HEALTH_PID || true
+
+# Keep script running with simple output every minute
 while true; do
-  # This is just to keep the script running
   sleep 60
   echo "System is still running... ($(date))"
 done &

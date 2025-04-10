@@ -48,42 +48,32 @@ export const apiService = {
    * Get an invoice by token
    */
   getInvoiceByToken: async (token: string): Promise<Invoice> => {
-    try {
-      // In case the token might need URL encoding
-      const encodedToken = encodeURIComponent(token)
-      
-      // The API endpoint expects /{linkToken}
-      const response = await api.get(`/invoices/${encodedToken}`)
-      
-      // Handle both wrapped and unwrapped responses
-      return response.data.data || response.data
-    } catch (error) {
-      // In production, we should not log sensitive data
-      throw error
-    }
+    // In case the token might need URL encoding
+    const encodedToken = encodeURIComponent(token)
+    
+    // The API endpoint expects /{linkToken}
+    const response = await api.get(`/invoices/${encodedToken}`)
+    
+    // Handle both wrapped and unwrapped responses
+    return response.data.data || response.data
   },
 
   /**
    * Create a new invoice
    */
   createInvoice: async (invoiceData: InvoiceFormData): Promise<Invoice> => {
-    try {
-      // Format the data before sending
-      const dataToSubmit = {
-        ...invoiceData,
-        amount: parseFloat(invoiceData.amount.toString()),
-        dueDate: new Date(invoiceData.dueDate).toISOString(),
-      }
-      
-      // In production, we should not log the entire payload with sensitive data
-      const response = await api.post('/invoices', dataToSubmit)
-      
-      // Return unwrapped data
-      return response.data.data || response.data
-    } catch (error: any) {
-      // In production, we should not log the raw error which might contain sensitive data
-      throw error
+    // Format the data before sending
+    const dataToSubmit = {
+      ...invoiceData,
+      amount: parseFloat(invoiceData.amount.toString()),
+      dueDate: new Date(invoiceData.dueDate).toISOString(),
     }
+    
+    // In production, we should not log the entire payload with sensitive data
+    const response = await api.post('/invoices', dataToSubmit)
+    
+    // Return unwrapped data
+    return response.data.data || response.data
   },
 
   /**

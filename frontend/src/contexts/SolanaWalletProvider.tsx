@@ -1,6 +1,6 @@
 'use client'
 
-import { FC, ReactNode, useMemo } from 'react'
+import { FC, ReactNode, useMemo, useState, useEffect } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
@@ -15,6 +15,15 @@ interface SolanaWalletProviderProps {
 }
 
 const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
+  // State to track if we're in the browser
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Set isMounted to true once the component is mounted
+  useEffect(() => {
+    setIsMounted(true)
+    return () => setIsMounted(false)
+  }, [])
+
   // Use devnet for development
   const network = WalletAdapterNetwork.Devnet
 
@@ -29,6 +38,11 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
     ],
     [] // Empty dependency array since no variables from the component scope are used
   )
+
+  // Return null on server-side rendering to prevent hydration issues
+  if (!isMounted) {
+    return <>{children}</>
+  }
 
   return (
     <ConnectionProvider endpoint={endpoint}>

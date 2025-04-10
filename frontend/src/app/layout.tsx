@@ -1,5 +1,4 @@
 import './globals.css'
-import '../styles/wallet-adapter.css'
 import type { Metadata } from 'next'
 import React from 'react'
 import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
@@ -30,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${inter.variable} ${dmSans.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <SolanaWalletProvider>
           <main className="min-h-screen bg-gray-50">

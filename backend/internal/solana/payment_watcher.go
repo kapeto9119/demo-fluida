@@ -138,6 +138,11 @@ func (pw *PaymentWatcher) checkPendingInvoices() error {
 	return nil
 }
 
+// ptr returns a pointer to the provided value
+func ptr[T any](v T) *T {
+	return &v
+}
+
 // checkForPayment checks if a specific invoice has been paid
 func (pw *PaymentWatcher) checkForPayment(ctx context.Context, invoice models.Invoice) (bool, error) {
 	// Parse receiver address
@@ -170,19 +175,27 @@ func (pw *PaymentWatcher) checkForPayment(ctx context.Context, invoice models.In
 		// Get transaction details
 		txSig, err := solana.SignatureFromBase58(sig.Signature.String())
 		if err != nil {
-			log.Printf("Invalid signature format: %v", err)
+			// Log at debug level in production
+			if isDebugMode() {
+				log.Printf("Invalid signature format: %v", err)
+			}
 			continue
 		}
 		
+		// Add maxSupportedTransactionVersion parameter to fix version error
 		tx, err := pw.rpcClient.GetTransaction(
 			ctx, 
 			txSig,
 			&rpc.GetTransactionOpts{
 				Encoding: solana.EncodingJSONParsed,
+				MaxSupportedTransactionVersion: ptr[uint64](0),
 			},
 		)
 		if err != nil {
-			log.Printf("Failed to get transaction details: %v", err)
+			// Log at debug level in production to reduce noise
+			if isDebugMode() {
+				log.Printf("Failed to get transaction details: %v", err)
+			}
 			continue
 		}
 		
@@ -193,6 +206,14 @@ func (pw *PaymentWatcher) checkForPayment(ctx context.Context, invoice models.In
 	}
 	
 	return false, nil
+}
+
+// isDebugMode returns true if we're running in debug mode
+// This would ideally check an environment variable or configuration setting
+func isDebugMode() bool {
+	// In production, you'd check ENV vars like:
+	// return os.Getenv("APP_ENV") != "production"
+	return false // Set to false for production
 }
 
 // isPaymentForInvoice determines if a transaction represents payment for an invoice

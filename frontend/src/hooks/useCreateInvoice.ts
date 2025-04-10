@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { InvoiceFormData, Invoice } from '../types'
 import apiService from '../services/api'
+
+// Key for localStorage
+const FORM_STORAGE_KEY = 'fluida_invoice_draft';
 
 /**
  * Initial form data with sensible defaults
@@ -30,12 +33,43 @@ const initialFormData: InvoiceFormData = {
  * Custom hook for creating invoices
  */
 export const useCreateInvoice = () => {
-  const [formData, setFormData] = useState<InvoiceFormData>(initialFormData)
+  // Try to load saved form data from localStorage
+  const loadSavedFormData = (): InvoiceFormData => {
+    if (typeof window === 'undefined') return initialFormData;
+    
+    try {
+      const savedData = localStorage.getItem(FORM_STORAGE_KEY);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData) as InvoiceFormData;
+        console.log('Loaded draft invoice from localStorage', parsedData);
+        return parsedData;
+      }
+    } catch (err) {
+      console.error('Error loading draft from localStorage:', err);
+    }
+    return initialFormData;
+  };
+
+  const [formData, setFormData] = useState<InvoiceFormData>(loadSavedFormData);
   const [isLoading, setIsLoading] = useState(false)
   const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Field-specific errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  // Track if form has unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
+  // Save form data to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && hasUnsavedChanges) {
+      try {
+        localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+        console.log('Saved draft invoice to localStorage');
+      } catch (err) {
+        console.error('Error saving draft to localStorage:', err);
+      }
+    }
+  }, [formData, hasUnsavedChanges]);
 
   /**
    * Validate form data before submission
@@ -118,6 +152,9 @@ export const useCreateInvoice = () => {
     } else {
       setFormData((prev: InvoiceFormData) => ({ ...prev, [name]: value }))
     }
+    
+    // Mark that we have unsaved changes
+    setHasUnsavedChanges(true);
   }
 
   /**
@@ -212,6 +249,13 @@ export const useCreateInvoice = () => {
     setFormData(initialFormData)
     setCreatedInvoice(null)
     setError(null)
+    setFieldErrors({})
+    // Clear saved draft
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(FORM_STORAGE_KEY);
+      console.log('Cleared draft invoice from localStorage');
+    }
+    setHasUnsavedChanges(false);
   }
 
   /**
@@ -258,16 +302,36 @@ export const useCreateInvoice = () => {
     return `${window.location.origin}/pay/${cleanToken}`;
   }
 
+  /**
+   * Clear saved form draft
+   */
+  const clearSavedDraft = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(FORM_STORAGE_KEY);
+      console.log('Cleared draft invoice from localStorage');
+    }
+    setHasUnsavedChanges(false);
+  }
+
+  // After successful submission, clear the saved draft
+  useEffect(() => {
+    if (createdInvoice) {
+      clearSavedDraft();
+    }
+  }, [createdInvoice]);
+
   return {
     formData,
     isLoading,
     createdInvoice,
     error,
     fieldErrors,
+    hasUnsavedChanges,
     handleChange,
     handleSubmit,
     resetForm,
     getPaymentLink,
+    clearSavedDraft,
   }
 }
 

@@ -51,6 +51,7 @@ func main() {
 
 	// Initialize handlers
 	invoiceHandler := handlers.NewInvoiceHandler(invoiceService)
+	draftInvoiceHandler := handlers.NewDraftInvoiceHandler()
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -139,6 +140,12 @@ func main() {
 			})
 			
 			r.Mount("/invoices", invoiceHandler.Routes())
+			
+			// Register draft invoice routes
+			r.Mount("/invoices/drafts", draftInvoiceHandler.Routes())
+			
+			// Mount invoice number check endpoint outside of drafts
+			r.Get("/invoices/check", draftInvoiceHandler.CheckInvoiceNumberExists)
 		})
 		
 		// Redirect legacy API calls to the versioned API

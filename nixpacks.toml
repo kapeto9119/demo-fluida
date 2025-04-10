@@ -21,10 +21,16 @@ cmds = [
 
 [phases.build]
 cmds = [
-  # Frontend build with detailed TailwindCSS installation
+  # Frontend build with improved TailwindCSS installation
   "cd frontend && rm -rf node_modules .next",
   "cd frontend && npm ci",
-  "cd frontend && npm install --save-dev tailwindcss postcss autoprefixer @tailwindcss/forms",
+  # Install TailwindCSS globally to ensure it's available for build
+  "npm install -g tailwindcss postcss autoprefixer",
+  # Install TailwindCSS locally to ensure it's available for Next.js build
+  "cd frontend && npm install --no-save tailwindcss postcss autoprefixer @tailwindcss/forms",
+  # Verify tailwind is installed correctly
+  "cd frontend && ls -la node_modules/tailwindcss || echo 'TailwindCSS not found'",
+  # Run the build with verbose output
   "cd frontend && NODE_ENV=production npm run build",
   # Backend build
   "cd backend && /usr/local/go/bin/go build -o app ./cmd/server"

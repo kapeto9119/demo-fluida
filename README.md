@@ -5,6 +5,7 @@ A web application that allows businesses to generate invoices and payment links 
 ## Features
 
 - **Invoice Creation**: Create detailed invoices with sender and recipient information.
+- **Draft Saving**: Save invoice drafts and resume work later.
 - **Payment Link Generation**: Automatically generate unique payment links for each invoice.
 - **Solana Wallet Integration**: Connect to Phantom or other Solana wallets.
 - **USDC Payments**: Process payments in USDC on Solana testnet.
@@ -187,13 +188,19 @@ npm run dev
    - Navigate to the "Create Invoice" page
    - Fill in the invoice details (sender info, recipient info, amount, etc.)
    - Provide a Solana wallet address to receive the payment
+   - Save as draft if you need to complete it later
    - Submit to generate a payment link
 
-2. **Share the Payment Link**:
+2. **Manage Draft Invoices**:
+   - Save invoice drafts when you need to pause work
+   - Return later to complete and submit the invoice
+   - Each user can have one active draft saved in the database
+
+3. **Share the Payment Link**:
    - Copy the generated link and share it with your client
    - Alternatively, email the link directly from the application
 
-3. **Receive Payment**:
+4. **Receive Payment**:
    - Client opens the link and sees the invoice details
    - Client connects their Solana wallet (Phantom, etc.)
    - Client approves the USDC transfer

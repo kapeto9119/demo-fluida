@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // CSS configuration is simpler now that we use local files
   async rewrites() {
     return [
       {

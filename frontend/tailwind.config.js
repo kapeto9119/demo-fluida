@@ -7,6 +7,10 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)'],
+        'dm-sans': ['var(--font-dm-sans)'],
+      },
       colors: {
         primary: {
           50: '#f0f9ff',

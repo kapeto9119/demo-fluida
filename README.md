@@ -107,10 +107,13 @@ The backend follows a layered architecture pattern:
    cd fluida-invoice-generator
    ```
 
-2. Start the frontend and backend:
+2. Start the database, frontend, and backend:
 
    Using the provided scripts:
    ```bash
+   # First, start the database:
+   ./dev-db.sh
+   
    # In one terminal:
    ./dev-frontend.sh
    
@@ -120,6 +123,9 @@ The backend follows a layered architecture pattern:
 
    Or manually:
    ```bash
+   # Database
+   docker-compose up -d db
+   
    # Frontend
    cd frontend
    npm install
@@ -138,6 +144,26 @@ The backend follows a layered architecture pattern:
 ### Development Setup
 
 If you want to run the components separately during development:
+
+#### Environment Variables
+The project uses a single root-level .env file for configuration across all services. An example file is provided:
+```bash
+# Root level .env.example (used for all services)
+.env.example
+```
+
+The development scripts will automatically create the .env file from the example if it doesn't exist. You can customize this file for your environment.
+
+For Docker Compose, the root .env file is used to configure all services. When running locally, the development scripts automatically use the same root .env file by setting the appropriate environment variables.
+
+#### Database (Required for both frontend and backend)
+```bash
+# Start the database
+./dev-db.sh
+
+# Or manually:
+docker-compose up -d db
+```
 
 #### Backend
 

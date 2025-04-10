@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // Response is the standard API response structure
@@ -117,7 +118,21 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 
 // Error sends an error response with the given status code
 func Error(w http.ResponseWriter, statusCode int, message, code string) {
-	New().WithError(message, code).Send(w, statusCode)
+	// Clean any potentially duplicated error messages
+	// This avoids the "Failed to create invoice: failed to create invoice:" type errors
+	cleanedMessage := message
+	if strings.Contains(message, "failed to create invoice:") {
+		prefix := "failed to create invoice:"
+		if strings.HasPrefix(message, prefix) {
+			rest := strings.TrimPrefix(message, prefix)
+			if strings.Contains(rest, prefix) {
+				// If we have duplication, clean it
+				cleanedMessage = prefix + strings.TrimPrefix(rest, prefix)
+			}
+		}
+	}
+	
+	New().WithError(cleanedMessage, code).Send(w, statusCode)
 }
 
 // ValidationError sends a validation error response
@@ -146,4 +161,9 @@ func BadRequest(w http.ResponseWriter, message string) {
 // InternalServerError sends a 500 Internal Server Error response
 func InternalServerError(w http.ResponseWriter) {
 	Error(w, http.StatusInternalServerError, "Internal server error", "internal_error")
+}
+
+// Success sends a success response with a message
+func Success(w http.ResponseWriter, statusCode int, message string) {
+	New().WithData(map[string]string{"message": message}).Send(w, statusCode)
 }

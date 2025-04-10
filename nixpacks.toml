@@ -1,5 +1,5 @@
 [phases.setup]
-nixpkgs = ["curl", "postgresql", "netcat"]
+nixpkgs = ["curl", "postgresql", "netcat", "python3"]
 
 [phases.prepare]
 cmds = [
@@ -26,13 +26,4 @@ cmds = [
 ]
 
 [start]
-cmd = "chmod +x railway-startup.sh && ./railway-startup.sh"
-
-[deploy]
-numReplicas = 1
-healthcheckPath = "/"
-healthcheckTimeout = 300
-healthcheckInterval = 15
-startupDelay = 30
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 10 
+cmd = "chmod +x railway-startup.sh && ./railway-startup.sh" 

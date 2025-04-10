@@ -9,7 +9,10 @@ interface InvoiceFormProps {
   formData: InvoiceFormData
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   handleSubmit: (e: React.FormEvent) => void
+  saveDraftToDatabase?: () => void
   isLoading: boolean
+  isSavingDraft?: boolean
+  draftSaved?: boolean
   fieldErrors?: Record<string, string>
 }
 
@@ -21,7 +24,10 @@ export const InvoiceForm = ({
   formData,
   handleChange,
   handleSubmit,
+  saveDraftToDatabase,
   isLoading,
+  isSavingDraft,
+  draftSaved,
   fieldErrors = {}
 }: InvoiceFormProps) => {
   return (
@@ -171,10 +177,21 @@ export const InvoiceForm = ({
         </div>
       </div>
       
-      <div className="flex justify-end">
+      <div className="flex justify-end space-x-3">
+        {saveDraftToDatabase && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={saveDraftToDatabase}
+            disabled={isLoading || isSavingDraft}
+            ariaLabel="Save as draft"
+          >
+            {isSavingDraft ? 'Saving...' : draftSaved ? 'Draft Saved' : 'Save as Draft'}
+          </Button>
+        )}
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isSavingDraft}
           ariaLabel="Create invoice"
         >
           {isLoading ? 'Creating...' : 'Create Invoice'}

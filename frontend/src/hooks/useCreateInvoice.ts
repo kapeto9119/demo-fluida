@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 import { InvoiceFormData, Invoice } from '../types'
 import apiService from '../services/api'
 
-// Key for localStorage
-const FORM_STORAGE_KEY = 'fluida_invoice_draft';
-
 /**
  * Initial form data with sensible defaults
  */
@@ -33,43 +30,16 @@ const initialFormData: InvoiceFormData = {
  * Custom hook for creating invoices
  */
 export const useCreateInvoice = () => {
-  // Try to load saved form data from localStorage
-  const loadSavedFormData = (): InvoiceFormData => {
-    if (typeof window === 'undefined') return initialFormData;
-    
-    try {
-      const savedData = localStorage.getItem(FORM_STORAGE_KEY);
-      if (savedData) {
-        const parsedData = JSON.parse(savedData) as InvoiceFormData;
-        console.log('Loaded draft invoice from localStorage', parsedData);
-        return parsedData;
-      }
-    } catch (err) {
-      console.error('Error loading draft from localStorage:', err);
-    }
-    return initialFormData;
-  };
-
-  const [formData, setFormData] = useState<InvoiceFormData>(loadSavedFormData);
+  const [formData, setFormData] = useState<InvoiceFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [draftSaved, setDraftSaved] = useState(false)
   // Field-specific errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  // Track if form has unsaved changes
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-
-  // Save form data to localStorage when it changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && hasUnsavedChanges) {
-      try {
-        localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
-        console.log('Saved draft invoice to localStorage');
-      } catch (err) {
-        console.error('Error saving draft to localStorage:', err);
-      }
-    }
-  }, [formData, hasUnsavedChanges]);
+  // User ID for saving drafts - in a real app, this would come from auth
+  const userId = "current_user"; // Placeholder - replace with actual user ID
 
   /**
    * Validate form data before submission
@@ -153,9 +123,50 @@ export const useCreateInvoice = () => {
       setFormData((prev: InvoiceFormData) => ({ ...prev, [name]: value }))
     }
     
-    // Mark that we have unsaved changes
-    setHasUnsavedChanges(true);
+    // Clear the draft saved state when form changes
+    if (draftSaved) {
+      setDraftSaved(false);
+    }
   }
+
+  /**
+   * Check if invoice number already exists
+   */
+  const checkInvoiceNumberExists = async (invoiceNumber: string): Promise<boolean> => {
+    try {
+      return await apiService.checkInvoiceNumberExists(invoiceNumber);
+    } catch (err) {
+      console.error('Error checking invoice number:', err);
+      return false;
+    }
+  };
+
+  /**
+   * Save the current form data as a draft to the database
+   */
+  const saveDraftToDatabase = async () => {
+    if (!formData.invoiceNumber.trim()) {
+      setError('Please enter an invoice number before saving draft');
+      return;
+    }
+
+    setIsSavingDraft(true);
+    try {
+      // Store the form data as JSON string
+      const invoiceDataJson = JSON.stringify(formData);
+      
+      // Save to database
+      await apiService.saveDraftInvoice(userId, invoiceDataJson);
+      
+      setDraftSaved(true);
+      setError(null);
+    } catch (err) {
+      console.error('Error saving draft invoice:', err);
+      setError('Failed to save draft invoice to database');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
 
   /**
    * Submit form data to create a new invoice
@@ -173,6 +184,19 @@ export const useCreateInvoice = () => {
       setError('Please fix the errors in the form before submitting');
       setIsLoading(false);
       return;
+    }
+    
+    // Check if invoice number already exists
+    if (formData.invoiceNumber) {
+      const exists = await checkInvoiceNumberExists(formData.invoiceNumber);
+      if (exists) {
+        setFieldErrors({
+          invoiceNumber: 'This invoice number already exists. Please use a different one.'
+        });
+        setError('Invoice number already exists. Please use a different invoice number.');
+        setIsLoading(false);
+        return;
+      }
     }
     
     try {
@@ -250,12 +274,7 @@ export const useCreateInvoice = () => {
     setCreatedInvoice(null)
     setError(null)
     setFieldErrors({})
-    // Clear saved draft
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(FORM_STORAGE_KEY);
-      console.log('Cleared draft invoice from localStorage');
-    }
-    setHasUnsavedChanges(false);
+    setDraftSaved(false);
   }
 
   /**
@@ -303,35 +322,41 @@ export const useCreateInvoice = () => {
   }
 
   /**
-   * Clear saved form draft
+   * Load a draft invoice from the database
    */
-  const clearSavedDraft = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(FORM_STORAGE_KEY);
-      console.log('Cleared draft invoice from localStorage');
+  const loadDraftFromDatabase = async () => {
+    setIsLoading(true);
+    try {
+      const draft = await apiService.getDraftInvoice(userId);
+      if (draft && draft.invoiceData) {
+        // Parse the JSON data
+        const parsedData = JSON.parse(draft.invoiceData) as InvoiceFormData;
+        setFormData(parsedData);
+      } else {
+        setError('No draft invoice found');
+      }
+    } catch (err) {
+      console.error('Error loading draft invoice:', err);
+      setError('Failed to load draft invoice');
+    } finally {
+      setIsLoading(false);
     }
-    setHasUnsavedChanges(false);
-  }
-
-  // After successful submission, clear the saved draft
-  useEffect(() => {
-    if (createdInvoice) {
-      clearSavedDraft();
-    }
-  }, [createdInvoice]);
+  };
 
   return {
     formData,
     isLoading,
+    isSavingDraft,
     createdInvoice,
     error,
     fieldErrors,
-    hasUnsavedChanges,
+    draftSaved,
     handleChange,
     handleSubmit,
     resetForm,
     getPaymentLink,
-    clearSavedDraft,
+    saveDraftToDatabase,
+    loadDraftFromDatabase
   }
 }
 

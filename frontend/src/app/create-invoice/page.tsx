@@ -11,15 +11,17 @@ export default function CreateInvoice() {
   const {
     formData,
     isLoading,
+    isSavingDraft,
     createdInvoice,
     error,
     fieldErrors,
-    hasUnsavedChanges,
+    draftSaved,
     handleChange,
     handleSubmit,
     resetForm,
     getPaymentLink,
-    clearSavedDraft
+    saveDraftToDatabase,
+    loadDraftFromDatabase
   } = useCreateInvoice()
 
   return (
@@ -33,16 +35,22 @@ export default function CreateInvoice() {
       )}
       
       {/* Show draft notification */}
-      {!createdInvoice && hasUnsavedChanges && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6 flex justify-between items-center">
-          <p>You have an unsaved draft invoice. Your changes are being saved automatically.</p>
-          <button 
-            onClick={clearSavedDraft} 
-            className="text-sm underline hover:no-underline"
-            aria-label="Clear draft"
+      {!createdInvoice && draftSaved && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+          <p>Your draft invoice has been saved.</p>
+        </div>
+      )}
+      
+      {/* Load draft button */}
+      {!createdInvoice && !draftSaved && (
+        <div className="mb-4">
+          <Button 
+            variant="outline" 
+            onClick={loadDraftFromDatabase}
+            disabled={isLoading || isSavingDraft}
           >
-            Clear Draft
-          </button>
+            Load Draft Invoice
+          </Button>
         </div>
       )}
       
@@ -108,7 +116,10 @@ export default function CreateInvoice() {
           formData={formData}
           handleChange={handleChange}
           handleSubmit={handleSubmit}
+          saveDraftToDatabase={saveDraftToDatabase}
           isLoading={isLoading}
+          isSavingDraft={isSavingDraft}
+          draftSaved={draftSaved}
           fieldErrors={fieldErrors}
         />
       )}

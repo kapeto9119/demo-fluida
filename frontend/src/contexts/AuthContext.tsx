@@ -3,9 +3,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 
+// Import API URL
+const API_URL = 'https://serene-radiance-production.up.railway.app'
+
 interface AuthContextType {
   isAuthenticated: boolean
-  login: (username: string, password: string) => void
+  login: (username: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -39,11 +42,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [pathname, router])
 
-  const login = (username: string, password: string) => {
+  const login = async (username: string, password: string) => {
     try {
-      // Store credentials in localStorage
-      const credentials = btoa(`${username}:${password}`)
-      localStorage.setItem('auth_credentials', credentials)
+      // Create temporary authentication token
+      const tempToken = btoa(`${username}:${password}`)
+      
+      // Verify credentials with backend before storing
+      const response = await fetch(`${API_URL}/api/v1/health`, {
+        headers: {
+          'Authorization': `Basic ${tempToken}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Invalid credentials')
+      }
+      
+      // Store verified credentials in localStorage
+      localStorage.setItem('auth_credentials', tempToken)
       localStorage.setItem('auth_username', username)
       localStorage.setItem('auth_password', password)
       
@@ -51,6 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       router.push('/')
     } catch (error) {
       console.error('Login error:', error)
+      throw error // Rethrow to allow login page to show error
     }
   }
 

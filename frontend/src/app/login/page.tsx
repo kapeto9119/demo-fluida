@@ -32,11 +32,11 @@ export default function LoginPage() {
     }
 
     try {
-      login(username, password)
+      await login(username, password)
       // Login success is handled by the context (redirects to home)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err)
-      setError('Invalid credentials')
+      setError(err.message || 'Invalid credentials. Please try again.')
       setIsLoading(false)
     }
   }

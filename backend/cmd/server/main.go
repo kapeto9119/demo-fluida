@@ -73,6 +73,16 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.RequestIDMiddleware)
 	
+	// Configure CORS - MUST be before BasicAuth for OPTIONS preflight requests
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://demo-fluida-production.up.railway.app", "http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+	
 	// Add Basic Authentication
 	r.Use(middleware.BasicAuth)
 	
@@ -98,16 +108,6 @@ func main() {
 	// Add our custom security middleware
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.ValidateContentType)
-	
-	// Configure CORS
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://demo-fluida-production.up.railway.app", "http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
 
 	// Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

@@ -365,4 +365,56 @@ If you encounter issues:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Railway Deployment
+
+This project is configured for deployment on Railway as individual services. This approach provides better scalability, reliability, and maintainability compared to deploying everything as a single service.
+
+### Deployment Architecture
+
+- **Backend API Service**: Deployed as a standalone Go service
+- **Frontend Web Application**: Deployed as a standalone Next.js service
+- **Database**: Using Railway's managed PostgreSQL database
+
+### How to Deploy to Railway
+
+1. **Set up Railway CLI**:
+   ```
+   npm install -g @railway/cli
+   railway login
+   ```
+
+2. **Create a new Railway project**:
+   ```
+   railway init
+   ```
+
+3. **Add a PostgreSQL database to your project**:
+   - In the Railway dashboard, click "New"
+   - Select "PostgreSQL" to add a database
+   - Railway will automatically provide the `DATABASE_URL` environment variable
+
+4. **Deploy the backend service**:
+   ```
+   cd backend
+   railway up
+   ```
+
+5. **Deploy the frontend service**:
+   ```
+   cd frontend
+   railway up
+   ```
+
+6. **Configure environment variables**:
+   - In the Railway dashboard, go to each service
+   - Set environment variables according to `.env.example`
+   - For the frontend, set `NEXT_PUBLIC_API_URL` to the backend service URL
+
+### Local Development vs Railway Deployment
+
+- **Local Development**: Uses Docker Compose to run all services together (`docker-compose up`)
+- **Railway Deployment**: Each service is deployed separately with its own configuration
+
+This approach allows you to develop locally with a setup similar to production while benefiting from Railway's managed services when deployed. 

@@ -41,8 +41,8 @@ jobs:
       - name: Test backend
         run: cd backend && go test ./...
 
-  deploy:
-    name: Deploy to Railway
+  deploy-backend:
+    name: Deploy Backend to Railway
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -54,7 +54,27 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
         
-      - name: Deploy to Railway
-        run: railway up --service=${{ secrets.RAILWAY_SERVICE_ID }} --environment=production --detach
+      - name: Deploy Backend to Railway
+        run: cd backend && railway up --service=backend --environment=production --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }} 
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+  
+  deploy-frontend:
+    name: Deploy Frontend to Railway
+    runs-on: ubuntu-latest
+    needs: [test, deploy-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+        
+      - name: Deploy Frontend to Railway
+        run: cd frontend && railway up --service=frontend --environment=production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }} 

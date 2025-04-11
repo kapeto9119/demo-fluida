@@ -70,117 +70,56 @@ The backend follows a layered architecture pattern:
 
 ## Getting Started
 
+This project has been reorganized for better maintainability and deployment. The codebase is now structured with:
+
+- `frontend/`: Next.js frontend application
+- `backend/`: Go backend API service
+- `scripts/`: Helper scripts for development and operations
+  - `scripts/local-dev/`: Scripts specifically for local development
+  - `scripts/startup.sh`: Main startup script for Docker Compose setup
+
 ### Prerequisites
 
-- Docker and Docker Compose (for containerized setup)
-- Node.js 18+ (for development without Docker)
-- Go 1.19+ (for backend development)
+- Node.js 18+ and npm
+- Go 1.20+
+- Docker and Docker Compose (for local development)
+- PostgreSQL (if developing without Docker)
 
-### Installation & Setup
+### Local Development
 
-#### Using Docker (Recommended)
+You can run the application in two ways:
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/fluida-invoice-generator.git
-   cd fluida-invoice-generator
-   ```
+#### 1. Using Docker Compose (recommended)
 
-2. Run the startup script:
-   ```
-   ./startup.sh
-   ```
-   
-   This will:
-   - Install frontend dependencies
-   - Build the Next.js app
-   - Start all Docker containers
+This method spins up all services (frontend, backend, database) in Docker containers:
 
-3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8080
-   
-#### Without Docker (Development Mode)
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/fluida-invoice-generator.git
-   cd fluida-invoice-generator
-   ```
-
-2. Start the database, frontend, and backend:
-
-   Using the provided scripts:
-   ```bash
-   # First, start the database:
-   ./dev-db.sh
-   
-   # In one terminal:
-   ./dev-frontend.sh
-   
-   # In another terminal:
-   ./dev-backend.sh
-   ```
-
-   Or manually:
-   ```bash
-   # Database
-   docker-compose up -d db
-   
-   # Frontend
-   cd frontend
-   npm install
-   npm run dev
-   
-   # Backend
-   cd backend
-   go mod tidy
-   go run cmd/server/main.go
-   ```
-
-3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8080
-
-### Development Setup
-
-If you want to run the components separately during development:
-
-#### Environment Variables
-The project uses a single root-level .env file for configuration across all services. An example file is provided:
 ```bash
-# Root level .env.example (used for all services)
-.env.example
+# Start all services
+docker-compose up
+
+# Or with the helper script (which handles common issues)
+./scripts/startup.sh
 ```
 
-The development scripts will automatically create the .env file from the example if it doesn't exist. You can customize this file for your environment.
+#### 2. Using Individual Development Scripts
 
-For Docker Compose, the root .env file is used to configure all services. When running locally, the development scripts automatically use the same root .env file by setting the appropriate environment variables.
+For more control during development, you can run each service separately:
 
-#### Database (Required for both frontend and backend)
 ```bash
 # Start the database
-./dev-db.sh
+./scripts/local-dev/dev-db.sh
 
-# Or manually:
-docker-compose up -d db
+# In a new terminal, start the backend
+./scripts/local-dev/dev-backend.sh
+
+# In another terminal, start the frontend
+./scripts/local-dev/dev-frontend.sh
 ```
 
-#### Backend
+### Access the Application
 
-```bash
-cd backend
-go mod download
-go run cmd/server/main.go
-```
-
-#### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8080/api/v1
 
 ## Usage
 
@@ -365,4 +304,56 @@ If you encounter issues:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Railway Deployment
+
+This project is configured for deployment on Railway as individual services. This approach provides better scalability, reliability, and maintainability compared to deploying everything as a single service.
+
+### Deployment Architecture
+
+- **Backend API Service**: Deployed as a standalone Go service
+- **Frontend Web Application**: Deployed as a standalone Next.js service
+- **Database**: Using Railway's managed PostgreSQL database
+
+### How to Deploy to Railway
+
+1. **Set up Railway CLI**:
+   ```
+   npm install -g @railway/cli
+   railway login
+   ```
+
+2. **Create a new Railway project**:
+   ```
+   railway init
+   ```
+
+3. **Add a PostgreSQL database to your project**:
+   - In the Railway dashboard, click "New"
+   - Select "PostgreSQL" to add a database
+   - Railway will automatically provide the `DATABASE_URL` environment variable
+
+4. **Deploy the backend service**:
+   ```
+   cd backend
+   railway up
+   ```
+
+5. **Deploy the frontend service**:
+   ```
+   cd frontend
+   railway up
+   ```
+
+6. **Configure environment variables**:
+   - In the Railway dashboard, go to each service
+   - Set environment variables according to `.env.example`
+   - For the frontend, set `NEXT_PUBLIC_API_URL` to the backend service URL
+
+### Local Development vs Railway Deployment
+
+- **Local Development**: Uses Docker Compose to run all services together (`docker-compose up`)
+- **Railway Deployment**: Each service is deployed separately with its own configuration
+
+This approach allows you to develop locally with a setup similar to production while benefiting from Railway's managed services when deployed. 

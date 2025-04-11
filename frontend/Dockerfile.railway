@@ -1,0 +1,44 @@
+FROM node:20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ linux-headers libc6-compat eudev-dev udev
+
+# Copy package files for better caching
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build the application
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN npm run build
+
+# Production image
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Set environment variables
+ENV NODE_ENV production
+ENV PORT 3000
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Copy from builder stage
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["npm", "start"] 

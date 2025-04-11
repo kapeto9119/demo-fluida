@@ -47,6 +47,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Authorization': `Basic ${basicAuthToken}`
   },
+  withCredentials: true
 })
 
 // Add an interceptor to update auth token if credentials change

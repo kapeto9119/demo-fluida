@@ -16,8 +16,8 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
   const invoiceList = Array.isArray(invoices) ? invoices : [];
   
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="card">
+      <div className="table-responsive">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -43,17 +43,17 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {invoiceList.map((invoice) => (
-              <tr key={invoice.id}>
+              <tr key={invoice.id} className="hover:bg-gray-50 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{invoice.invoiceNumber}</div>
-                  <div className="text-sm text-gray-500">{formatDate(invoice.createdAt)}</div>
+                  <div className="text-xs text-gray-500">{formatDate(invoice.createdAt)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{invoice.recipientDetails.name}</div>
-                  <div className="text-sm text-gray-500">{invoice.recipientDetails.email}</div>
+                  <div className="text-xs text-gray-500">{invoice.recipientDetails.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{invoice.amount} {invoice.currency}</div>
+                  <div className="text-sm font-medium text-gray-900">{invoice.amount} {invoice.currency}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{formatDate(invoice.dueDate)}</div>
@@ -66,7 +66,7 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
                     href={`/pay/${invoice.linkToken}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-900 mr-4"
+                    className="text-primary-600 hover:text-primary-900 hover:underline"
                   >
                     View Payment Link
                   </a>
@@ -82,6 +82,50 @@ export const InvoiceTable = ({ invoices, formatDate }: InvoiceTableProps) => {
             )}
           </tbody>
         </table>
+      </div>
+      
+      {/* Alternative mobile view - only shows below sm breakpoint */}
+      <div className="sm:hidden mt-4">
+        {invoiceList.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">No invoices found</p>
+        ) : (
+          <div className="space-y-4 px-4 pb-4">
+            {invoiceList.map((invoice) => (
+              <div key={invoice.id} className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="font-medium">{invoice.invoiceNumber}</div>
+                    <div className="text-xs text-gray-500">{formatDate(invoice.createdAt)}</div>
+                  </div>
+                  <StatusBadge status={invoice.status} />
+                </div>
+                
+                <div className="mb-2">
+                  <div className="text-sm">{invoice.recipientDetails.name}</div>
+                  <div className="text-xs text-gray-500">{invoice.recipientDetails.email}</div>
+                </div>
+                
+                <div className="flex justify-between items-center text-sm mb-3">
+                  <div>
+                    <span className="text-gray-500">Amount:</span> {invoice.amount} {invoice.currency}
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Due:</span> {formatDate(invoice.dueDate)}
+                  </div>
+                </div>
+                
+                <a
+                  href={`/pay/${invoice.linkToken}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-primary-600 border border-primary-600 rounded-md py-1 px-2 text-sm hover:bg-primary-50"
+                >
+                  View Payment Link
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

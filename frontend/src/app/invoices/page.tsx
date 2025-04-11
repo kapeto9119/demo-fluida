@@ -24,8 +24,8 @@ export default function InvoicesList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-2xl font-bold">All Invoices</h1>
         <Link href="/create-invoice">
           <Button ariaLabel="Create new invoice">Create New Invoice</Button>
@@ -39,10 +39,12 @@ export default function InvoicesList() {
       )}
 
       {invoicesList.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <p className="text-gray-600">No invoices found.</p>
-          <Link href="/create-invoice" className="text-primary-600 underline mt-2 inline-block">
-            Create your first invoice
+        <div className="card card-body text-center py-12">
+          <p className="text-gray-600 mb-4">No invoices found.</p>
+          <Link href="/create-invoice">
+            <Button variant="primary" ariaLabel="Create your first invoice">
+              Create your first invoice
+            </Button>
           </Link>
         </div>
       ) : (

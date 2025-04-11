@@ -5,60 +5,57 @@ import { Invoice, InvoiceFormData } from '../types'
 // const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const API_URL = 'https://serene-radiance-production.up.railway.app'
 
-// Get authentication credentials from localStorage if available, fallback to environment variables
-const getAuthCredentials = () => {
+// Get authentication token from localStorage if available, fallback to environment variables
+const getAuthToken = () => {
   // Check if we're in a browser environment
   if (typeof window !== 'undefined') {
+    const storedToken = localStorage.getItem('auth_token')
+    
+    if (storedToken) {
+      return storedToken
+    }
+    
+    // Fallback: try to reconstruct from username/password (for backward compatibility)
     const storedUsername = localStorage.getItem('auth_username')
     const storedPassword = localStorage.getItem('auth_password')
     
     if (storedUsername && storedPassword) {
-      return {
-        username: storedUsername,
-        password: storedPassword
-      }
+      const token = btoa(`${storedUsername}:${storedPassword}`)
+      // Store the token for future use
+      localStorage.setItem('auth_token', token)
+      // Remove the password from localStorage
+      localStorage.removeItem('auth_password')
+      return token
     }
   }
   
   // Fallback to environment variables
-  return {
-    username: process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin',
-    password: process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
-  }
+  const username = process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin'
+  const password = process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
+  return btoa(`${username}:${password}`)
 }
 
-// Create basic auth token (in a way that works in both Node.js and browsers)
-const createBasicAuthToken = (username: string, password: string) => {
-  // For browser environments
-  if (typeof window !== 'undefined' && window.btoa) {
-    return window.btoa(`${username}:${password}`)
-  }
-  // For Node.js environments (during SSR)
-  return Buffer.from(`${username}:${password}`).toString('base64')
-}
-
-const auth = getAuthCredentials()
-const basicAuthToken = createBasicAuthToken(auth.username, auth.password)
+// Get the auth token
+const authToken = getAuthToken()
 
 // Create an axios instance with default settings
 const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Basic ${basicAuthToken}`
+    'Authorization': `Basic ${authToken}`
   },
   withCredentials: true
 })
 
-// Add an interceptor to update auth token if credentials change
+// Add an interceptor to update auth token if it changes
 if (typeof window !== 'undefined') {
-  // Check for credential changes every request
+  // Check for token changes on every request
   api.interceptors.request.use(config => {
-    const currentAuth = getAuthCredentials()
-    const currentToken = createBasicAuthToken(currentAuth.username, currentAuth.password)
+    const currentToken = getAuthToken()
     
     // Update the Authorization header if token has changed
-    if (config.headers && currentToken !== basicAuthToken) {
+    if (config.headers && currentToken !== authToken) {
       config.headers.Authorization = `Basic ${currentToken}`
     }
     

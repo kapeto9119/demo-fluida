@@ -179,6 +179,13 @@ func main() {
 				})
 			})
 			
+			// Authentication verification endpoint - returns 200 if auth is valid
+			r.Get("/auth/verify", func(w http.ResponseWriter, r *http.Request) {
+				response.JSON(w, http.StatusOK, map[string]string{
+					"status": "authenticated",
+				})
+			})
+			
 			r.Mount("/invoices", invoiceHandler.Routes())
 			
 			// Register draft invoice routes

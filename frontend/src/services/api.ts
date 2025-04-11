@@ -5,11 +5,28 @@ import { Invoice, InvoiceFormData } from '../types'
 // const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const API_URL = 'https://serene-radiance-production.up.railway.app'
 
+// Get authentication credentials from environment
+const AUTH_USERNAME = process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin'
+const AUTH_PASSWORD = process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
+
+// Create basic auth token (in a way that works in both Node.js and browsers)
+const createBasicAuthToken = (username: string, password: string) => {
+  // For browser environments
+  if (typeof window !== 'undefined' && window.btoa) {
+    return window.btoa(`${username}:${password}`)
+  }
+  // For Node.js environments (during SSR)
+  return Buffer.from(`${username}:${password}`).toString('base64')
+}
+
+const basicAuthToken = createBasicAuthToken(AUTH_USERNAME, AUTH_PASSWORD)
+
 // Create an axios instance with default settings
 const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': `Basic ${basicAuthToken}`
   },
 })
 

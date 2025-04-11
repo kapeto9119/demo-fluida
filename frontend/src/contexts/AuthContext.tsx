@@ -33,8 +33,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check for existing auth on mount
   useEffect(() => {
-    const storedCredentials = localStorage.getItem('auth_credentials')
-    if (storedCredentials) {
+    const storedToken = localStorage.getItem('auth_token')
+    if (storedToken) {
       setIsAuthenticated(true)
     } else if (pathname !== '/login' && !isPublicRoute(pathname)) {
       // Redirect to login if not authenticated and not on login page
@@ -66,10 +66,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
         
         if (response.ok) {
-          // Store verified credentials in localStorage
-          localStorage.setItem('auth_credentials', tempToken)
-          localStorage.setItem('auth_username', username)
-          localStorage.setItem('auth_password', password)
+          // Store only the auth token, not the raw credentials
+          localStorage.setItem('auth_token', tempToken)
+          localStorage.setItem('auth_username', username) // Keep username for UI purposes
+          // NEVER store raw password in localStorage
           
           setIsAuthenticated(true)
           router.push('/')
@@ -98,9 +98,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const logout = () => {
-    localStorage.removeItem('auth_credentials')
+    localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_username')
-    localStorage.removeItem('auth_password')
+    localStorage.removeItem('auth_password') // Remove this if it exists (for backward compatibility)
     setIsAuthenticated(false)
     router.push('/login')
   }

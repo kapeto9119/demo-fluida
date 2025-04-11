@@ -36,8 +36,10 @@ export default function RootLayout({
         <AuthProvider>
           <SolanaWalletProvider>
             <HeaderClientWrapper />
-            <main className="min-h-screen bg-gray-50">
-              {children}
+            <main className="min-h-screen bg-gray-50 pt-4 pb-8">
+              <div className="container-fluid">
+                {children}
+              </div>
             </main>
           </SolanaWalletProvider>
         </AuthProvider>

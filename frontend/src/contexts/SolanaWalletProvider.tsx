@@ -3,7 +3,6 @@
 import { FC, ReactNode, useMemo, useState, useEffect } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { clusterApiUrl } from '@solana/web3.js'
 
@@ -30,13 +29,10 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
   // Set up connection endpoint
   const endpoint = useMemo(() => clusterApiUrl(network), [network])
 
-  // Set up supported wallets
+  // Using empty wallets array - Wallet Standard will auto-detect supported wallets
   const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
-    [] // Empty dependency array since no variables from the component scope are used
+    () => [],
+    []
   )
 
   // Return null on server-side rendering to prevent hydration issues

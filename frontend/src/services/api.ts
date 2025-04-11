@@ -5,9 +5,27 @@ import { Invoice, InvoiceFormData } from '../types'
 // const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const API_URL = 'https://serene-radiance-production.up.railway.app'
 
-// Get authentication credentials from environment
-const AUTH_USERNAME = process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin'
-const AUTH_PASSWORD = process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
+// Get authentication credentials from localStorage if available, fallback to environment variables
+const getAuthCredentials = () => {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    const storedUsername = localStorage.getItem('auth_username')
+    const storedPassword = localStorage.getItem('auth_password')
+    
+    if (storedUsername && storedPassword) {
+      return {
+        username: storedUsername,
+        password: storedPassword
+      }
+    }
+  }
+  
+  // Fallback to environment variables
+  return {
+    username: process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin',
+    password: process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
+  }
+}
 
 // Create basic auth token (in a way that works in both Node.js and browsers)
 const createBasicAuthToken = (username: string, password: string) => {
@@ -19,7 +37,8 @@ const createBasicAuthToken = (username: string, password: string) => {
   return Buffer.from(`${username}:${password}`).toString('base64')
 }
 
-const basicAuthToken = createBasicAuthToken(AUTH_USERNAME, AUTH_PASSWORD)
+const auth = getAuthCredentials()
+const basicAuthToken = createBasicAuthToken(auth.username, auth.password)
 
 // Create an axios instance with default settings
 const api = axios.create({
@@ -29,6 +48,22 @@ const api = axios.create({
     'Authorization': `Basic ${basicAuthToken}`
   },
 })
+
+// Add an interceptor to update auth token if credentials change
+if (typeof window !== 'undefined') {
+  // Check for credential changes every request
+  api.interceptors.request.use(config => {
+    const currentAuth = getAuthCredentials()
+    const currentToken = createBasicAuthToken(currentAuth.username, currentAuth.password)
+    
+    // Update the Authorization header if token has changed
+    if (config.headers && currentToken !== basicAuthToken) {
+      config.headers.Authorization = `Basic ${currentToken}`
+    }
+    
+    return config
+  })
+}
 
 /**
  * API service to handle all API calls in a centralized location

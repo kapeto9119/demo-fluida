@@ -23,8 +23,21 @@ RUN go mod tidy && go mod download
 # Copy the rest of the application
 COPY . .
 
+# Build the application for production
+RUN go build -o server cmd/server/main.go
+
+# Set production environment variable
+ENV ENVIRONMENT=production
+
+# Set default authentication (can be overridden)
+ENV AUTH_USERNAME=admin
+ENV AUTH_PASSWORD=fluida
+
 # Expose port
 EXPOSE 8080
 
-# Run air for hot reloading in development
-CMD ["air", "-c", ".air.toml"] 
+# Command for production (uses the compiled binary)
+CMD ["./server"]
+
+# Development mode (commented out, can be used locally)
+# CMD ["air", "-c", ".air.toml"] 

@@ -1,16 +1,67 @@
 import axios from 'axios'
 import { Invoice, InvoiceFormData } from '../types'
 
-// Get the API URL from environment or use localhost in development
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// TEMPORARY FIX: Hardcode the production API URL
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+const API_URL = 'https://serene-radiance-production.up.railway.app'
+
+// Get authentication token from localStorage if available, fallback to environment variables
+const getAuthToken = () => {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    const storedToken = localStorage.getItem('auth_token')
+    
+    if (storedToken) {
+      return storedToken
+    }
+    
+    // Fallback: try to reconstruct from username/password (for backward compatibility)
+    const storedUsername = localStorage.getItem('auth_username')
+    const storedPassword = localStorage.getItem('auth_password')
+    
+    if (storedUsername && storedPassword) {
+      const token = btoa(`${storedUsername}:${storedPassword}`)
+      // Store the token for future use
+      localStorage.setItem('auth_token', token)
+      // Remove the password from localStorage
+      localStorage.removeItem('auth_password')
+      return token
+    }
+  }
+  
+  // Fallback to environment variables
+  const username = process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin'
+  const password = process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'fluida'
+  return btoa(`${username}:${password}`)
+}
+
+// Get the auth token
+const authToken = getAuthToken()
 
 // Create an axios instance with default settings
 const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': `Basic ${authToken}`
   },
+  withCredentials: true
 })
+
+// Add an interceptor to update auth token if it changes
+if (typeof window !== 'undefined') {
+  // Check for token changes on every request
+  api.interceptors.request.use(config => {
+    const currentToken = getAuthToken()
+    
+    // Update the Authorization header if token has changed
+    if (config.headers && currentToken !== authToken) {
+      config.headers.Authorization = `Basic ${currentToken}`
+    }
+    
+    return config
+  })
+}
 
 /**
  * API service to handle all API calls in a centralized location
@@ -48,42 +99,32 @@ export const apiService = {
    * Get an invoice by token
    */
   getInvoiceByToken: async (token: string): Promise<Invoice> => {
-    try {
-      // In case the token might need URL encoding
-      const encodedToken = encodeURIComponent(token)
-      
-      // The API endpoint expects /{linkToken}
-      const response = await api.get(`/invoices/${encodedToken}`)
-      
-      // Handle both wrapped and unwrapped responses
-      return response.data.data || response.data
-    } catch (error) {
-      // In production, we should not log sensitive data
-      throw error
-    }
+    // In case the token might need URL encoding
+    const encodedToken = encodeURIComponent(token)
+    
+    // The API endpoint expects /{linkToken}
+    const response = await api.get(`/invoices/${encodedToken}`)
+    
+    // Handle both wrapped and unwrapped responses
+    return response.data.data || response.data
   },
 
   /**
    * Create a new invoice
    */
   createInvoice: async (invoiceData: InvoiceFormData): Promise<Invoice> => {
-    try {
-      // Format the data before sending
-      const dataToSubmit = {
-        ...invoiceData,
-        amount: parseFloat(invoiceData.amount.toString()),
-        dueDate: new Date(invoiceData.dueDate).toISOString(),
-      }
-      
-      // In production, we should not log the entire payload with sensitive data
-      const response = await api.post('/invoices', dataToSubmit)
-      
-      // Return unwrapped data
-      return response.data.data || response.data
-    } catch (error: any) {
-      // In production, we should not log the raw error which might contain sensitive data
-      throw error
+    // Format the data before sending
+    const dataToSubmit = {
+      ...invoiceData,
+      amount: parseFloat(invoiceData.amount.toString()),
+      dueDate: new Date(invoiceData.dueDate).toISOString(),
     }
+    
+    // In production, we should not log the entire payload with sensitive data
+    const response = await api.post('/invoices', dataToSubmit)
+    
+    // Return unwrapped data
+    return response.data.data || response.data
   },
 
   /**

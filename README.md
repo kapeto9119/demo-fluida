@@ -1,4 +1,4 @@
-# Fluida Invoice & Payment Link Generator
+# Fluida CTO Assignment: Invoice & Payment Link Generator
 
 A web application that allows businesses to generate invoices and payment links for receiving USDC payments on the Solana blockchain (testnet).
 
@@ -70,117 +70,56 @@ The backend follows a layered architecture pattern:
 
 ## Getting Started
 
+This project has been reorganized for better maintainability and deployment. The codebase is now structured with:
+
+- `frontend/`: Next.js frontend application
+- `backend/`: Go backend API service
+- `scripts/`: Helper scripts for development and operations
+  - `scripts/local-dev/`: Scripts specifically for local development
+  - `scripts/startup.sh`: Main startup script for Docker Compose setup
+
 ### Prerequisites
 
-- Docker and Docker Compose (for containerized setup)
-- Node.js 18+ (for development without Docker)
-- Go 1.19+ (for backend development)
+- Node.js 18+ and npm
+- Go 1.20+
+- Docker and Docker Compose (for local development)
+- PostgreSQL (if developing without Docker)
 
-### Installation & Setup
+### Local Development
 
-#### Using Docker (Recommended)
+You can run the application in two ways:
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/fluida-invoice-generator.git
-   cd fluida-invoice-generator
-   ```
+#### 1. Using Docker Compose (recommended)
 
-2. Run the startup script:
-   ```
-   ./startup.sh
-   ```
-   
-   This will:
-   - Install frontend dependencies
-   - Build the Next.js app
-   - Start all Docker containers
+This method spins up all services (frontend, backend, database) in Docker containers:
 
-3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8080
-   
-#### Without Docker (Development Mode)
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/fluida-invoice-generator.git
-   cd fluida-invoice-generator
-   ```
-
-2. Start the database, frontend, and backend:
-
-   Using the provided scripts:
-   ```bash
-   # First, start the database:
-   ./dev-db.sh
-   
-   # In one terminal:
-   ./dev-frontend.sh
-   
-   # In another terminal:
-   ./dev-backend.sh
-   ```
-
-   Or manually:
-   ```bash
-   # Database
-   docker-compose up -d db
-   
-   # Frontend
-   cd frontend
-   npm install
-   npm run dev
-   
-   # Backend
-   cd backend
-   go mod tidy
-   go run cmd/server/main.go
-   ```
-
-3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8080
-
-### Development Setup
-
-If you want to run the components separately during development:
-
-#### Environment Variables
-The project uses a single root-level .env file for configuration across all services. An example file is provided:
 ```bash
-# Root level .env.example (used for all services)
-.env.example
+# Start all services
+docker-compose up
+
+# Or with the helper script (which handles common issues)
+./scripts/startup.sh
 ```
 
-The development scripts will automatically create the .env file from the example if it doesn't exist. You can customize this file for your environment.
+#### 2. Using Individual Development Scripts
 
-For Docker Compose, the root .env file is used to configure all services. When running locally, the development scripts automatically use the same root .env file by setting the appropriate environment variables.
+For more control during development, you can run each service separately:
 
-#### Database (Required for both frontend and backend)
 ```bash
 # Start the database
-./dev-db.sh
+./scripts/local-dev/dev-db.sh
 
-# Or manually:
-docker-compose up -d db
+# In a new terminal, start the backend
+./scripts/local-dev/dev-backend.sh
+
+# In another terminal, start the frontend
+./scripts/local-dev/dev-frontend.sh
 ```
 
-#### Backend
+### Access the Application
 
-```bash
-cd backend
-go mod download
-go run cmd/server/main.go
-```
-
-#### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8080/api/v1
 
 ## Usage
 
@@ -223,9 +162,10 @@ To test the application, you'll need:
 With more time, these areas could be enhanced:
 
 1. **Security**:
-   - Add authentication and authorization
-   - Implement rate limiting
-   - Add better error handling and validation
+   - ~~Add authentication and authorization~~ ✅ Basic Auth Implemented
+   - ~~Implement rate limiting~~ ✅ Implemented
+   - ~~Add better error handling and validation~~ ✅ Implemented
+   - Additional CSRF protection
 
 2. **Features**:
    - Email notifications for payments
@@ -238,130 +178,48 @@ With more time, these areas could be enhanced:
    - Proper USDC SPL token implementation
    - WebSocket-based payment detection
    - Comprehensive test suite
-   - CI/CD pipeline
+   - ~~CI/CD pipeline~~ ✅ Implemented
+
+## Recent Improvements
+
+The following enhancements have been implemented:
+
+- **Basic Authentication**: Simple username/password protection across the application (both backend and frontend)
+- **Standardized Error Handling**: Consistent error responses with proper status codes
+- **Rate Limiting**: Protection against API abuse with proxy-aware client detection
+- **Response Standardization**: Consistent JSON structure across all endpoints
+- **Production Readiness**: Environment-specific configurations and Docker setup for Railway
 
 ## API-First Approach
 
-This project was developed with an API-first mindset, enabling future extensibility and integrations:
+This project follows API-first principles with:
 
-### API Design Principles
+- Resource-oriented design with predictable URLs and standard HTTP methods
+- Versioned endpoints and backward compatibility
+- Extensibility for future integrations with accounting software and payment processors
 
-- **Resource-Oriented**: APIs are organized around resources (invoices, payments)
-- **Predictable URLs**: Consistent URL patterns (`/api/invoices/{id}`)
-- **Standard HTTP Methods**: Using appropriate HTTP verbs (GET, POST, PUT)
-- **Stateless Interactions**: Each request contains all information needed to process it
+## Security Considerations
 
-### Future API Evolution
-
-The API is designed to evolve through:
-
-1. **Versioning Strategy**: 
-   - Current implicit version is v1
-   - Future versions would use explicit path versioning (`/api/v2/invoices`)
-   - Backward compatibility maintained across versions
-
-2. **Extensibility Points**:
-   - Webhook support for payment notifications
-   - API keys for third-party integrations
-   - Pagination and filtering for resource listing
-   - Bulk operations for invoice management
-
-3. **Potential Integrations**:
-   - Accounting software (QuickBooks, Xero)
-   - Payment processors
-   - ERP systems
-   - CRM platforms
-
-### API Documentation
-
-A full OpenAPI/Swagger specification could be generated to provide:
-- Interactive documentation
-- SDK generation for clients
-- Automated testing of endpoints
-
-## Security Best Practices
-
-The application implements several security best practices, with notes on future enhancements:
-
-### Wallet Key Security
-
-- **Client-Side Only**: Private keys never leave the user's wallet
-- **No Key Storage**: The application never stores private keys
-- **Public Key Validation**: Implemented address validation before accepting transactions
-
-### Data Protection
-
-- **Sensitive Data Handling**: Personal information is validated and sanitized
-- **Future Enhancement**: Implement field-level encryption for sensitive invoice data
-- **Future Enhancement**: Add data retention policies and secure deletion
-
-### API Security
-
-- **Input Validation**: All inputs are validated before processing
-- **Future Enhancement**: Implement JWT-based authentication
-- **Future Enhancement**: Add CORS protection and CSP headers
-- **Future Enhancement**: Implement rate limiting to prevent abuse
-
-### Blockchain Security
-
-- **Transaction Verification**: Multiple validations before confirming transactions
-- **Future Enhancement**: Implement multi-signature support for high-value transactions
-- **Future Enhancement**: Add transaction anomaly detection
-
-### Audit and Compliance
-
-- **Transaction Logging**: All blockchain interactions are logged
-- **Future Enhancement**: Implement comprehensive audit logging for security events
-- **Future Enhancement**: Add compliance reporting for financial regulations
+- **Wallet Security**: Private keys never leave the user's wallet
+- **Data Protection**: Input validation and sanitization
+- **API Security**: Rate limiting and error handling
+- **Blockchain Security**: Transaction verification before confirmation
 
 ## Troubleshooting
 
-If you encounter issues:
+Common issues:
+- **Docker not running**: Use development mode without Docker
+- **Connection issues**: Check logs and ensure PostgreSQL is running
+- **Build errors**: See full documentation for specific error solutions
 
-1. **Docker not running:**
-   - The startup script will notify you if Docker isn't available
-   - Follow the instructions to run in development mode without Docker
+## Railway Deployment
 
-2. **Frontend build issues:**
-   - Install dependencies manually: `cd frontend && npm install`
-   - Run in development mode: `npm run dev`
+The project is configured for Railway deployment as individual services:
+- **Backend API**: Standalone Go service 
+- **Frontend**: Next.js application
+- **Database**: Railway's managed PostgreSQL
 
-3. **Backend connection issues:**
-   - Ensure PostgreSQL is running (if using Docker, check `docker ps`)
-   - Check backend logs: `docker logs fluida-backend`
-
-4. **Air hot-reload installation error:**
-   - If you see an error about `github.com/cosmtrek/air`, it could be one of two issues:
-     1. The package has moved to a new path (`github.com/air-verse/air`), OR
-     2. The newer versions require Go 1.21+, which conflicts with our Go 1.20 Docker image
-   - Solution: Edit the backend/Dockerfile to use a compatible version:
-     ```
-     RUN go install github.com/cosmtrek/air@v1.29.0
-     ```
-   - Alternatively, run the backend directly without Docker:
-     ```
-     cd backend
-     go run cmd/server/main.go
-     ```
-
-5. **Docker build error: go.sum not found:**
-   - This occurs when trying to build the Docker image without first generating the go.sum file
-   - Solution 1: Run `go mod tidy` in the backend directory before building Docker containers
-   - Solution 2: Use the provided startup script which handles this automatically
-   - The error typically looks like: `failed to solve: failed to compute cache key: failed to calculate checksum of ref: "/go.sum": not found`
-
-6. **Frontend Docker build error: Node.js version:**
-   - The newer Solana dependencies require Node.js 20+, but our Docker image uses Node.js 18
-   - Solutions:
-     1. Run without Docker: `cd frontend && npm run dev`
-     2. Update the frontend/Dockerfile to use Node.js 20:
-        ```
-        FROM node:20-alpine
-        ```
-     3. Install Python in the Docker container for native dependencies:
-        ```
-        RUN apk add --no-cache python3 make g++
-        ```
+Deployment steps and environment variable configuration are provided in the Railway dashboard.
 
 ## License
 

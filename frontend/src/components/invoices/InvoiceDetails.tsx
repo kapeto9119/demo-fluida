@@ -18,8 +18,8 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex justify-between items-start mb-6">
+    <div className="card card-body">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
         <div>
           <h2 className="text-xl font-semibold">Invoice #{invoice.invoiceNumber}</h2>
           <p className="text-gray-500 text-sm">Created on {formatDate(invoice.createdAt)}</p>
@@ -29,7 +29,7 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Sender Details */}
-        <div className="border rounded-md p-4">
+        <div className="border rounded-md p-4 bg-gray-50">
           <h3 className="text-sm font-medium text-gray-500 mb-2">From</h3>
           <p className="font-medium">{invoice.senderDetails.name}</p>
           <p className="text-gray-600">{invoice.senderDetails.email}</p>
@@ -37,7 +37,7 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
         </div>
         
         {/* Recipient Details */}
-        <div className="border rounded-md p-4">
+        <div className="border rounded-md p-4 bg-gray-50">
           <h3 className="text-sm font-medium text-gray-500 mb-2">To</h3>
           <p className="font-medium">{invoice.recipientDetails.name}</p>
           <p className="text-gray-600">{invoice.recipientDetails.email}</p>
@@ -47,12 +47,12 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
       
       {/* Invoice Amount and Details */}
       <div className="border rounded-md p-4 mb-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h3 className="text-lg font-medium">Amount Due</h3>
-          <p className="text-2xl font-bold">{invoice.amount} {invoice.currency}</p>
+          <p className="text-2xl font-bold text-primary-700">{invoice.amount} {invoice.currency}</p>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h4 className="text-sm font-medium text-gray-500">Invoice Number</h4>
             <p>{invoice.invoiceNumber}</p>
@@ -61,9 +61,9 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
             <h4 className="text-sm font-medium text-gray-500">Due Date</h4>
             <p>{formatDate(invoice.dueDate)}</p>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <h4 className="text-sm font-medium text-gray-500">Payment Address</h4>
-            <p className="font-mono text-sm break-all">{invoice.receiverAddr}</p>
+            <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded border mt-1">{invoice.receiverAddr}</p>
           </div>
         </div>
       </div>

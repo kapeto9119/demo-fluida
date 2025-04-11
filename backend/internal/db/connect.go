@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -34,12 +35,38 @@ type Config struct {
 
 // LoadConfigFromEnv loads database configuration from environment variables
 func LoadConfigFromEnv() Config {
+	// First check Railway-specific PostgreSQL variables (PGHOST, PGUSER, etc.)
+	host := getEnvOrDefault("PGHOST", "")
+	port := getEnvOrDefault("PGPORT", "")
+	user := getEnvOrDefault("PGUSER", "")
+	password := getEnvOrDefault("PGPASSWORD", "")
+	dbName := getEnvOrDefault("PGDATABASE", "")
+	
+	// If Railway variables not found, fall back to our custom DB_* variables
+	if host == "" {
+		host = getEnvOrDefault("DB_HOST", "db")
+	}
+	if port == "" {
+		port = getEnvOrDefault("DB_PORT", "5432")
+	}
+	if user == "" {
+		user = getEnvOrDefault("DB_USER", "postgres")
+	}
+	if password == "" {
+		password = getEnvOrDefault("DB_PASSWORD", "postgres")
+	}
+	if dbName == "" {
+		dbName = getEnvOrDefault("DB_NAME", "fluida")
+	}
+	
+	log.Printf("Using database configuration: host=%s, port=%s, user=%s, dbname=%s", host, port, user, dbName)
+	
 	return Config{
-		Host:         getEnvOrDefault("DB_HOST", "db"),
-		Port:         getEnvOrDefault("DB_PORT", "5432"),
-		User:         getEnvOrDefault("DB_USER", "postgres"),
-		Password:     getEnvOrDefault("DB_PASSWORD", "postgres"),
-		DBName:       getEnvOrDefault("DB_NAME", "fluida"),
+		Host:         host,
+		Port:         port,
+		User:         user,
+		Password:     password,
+		DBName:       dbName,
 		MaxIdleConns: 10,
 		MaxOpenConns: 100,
 		MaxLifetime:  time.Hour,
@@ -56,11 +83,63 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 // Connect establishes a connection to the database
 func Connect() (*sql.DB, error) {
-	config := LoadConfigFromEnv()
+	// Check if DATABASE_URL is provided (Railway deployment)
+	databaseURL := os.Getenv("DATABASE_URL")
 	
-	// Connection string
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.Host, config.Port, config.User, config.Password, config.DBName)
+	// Check for Railway-specific database URL if DATABASE_URL is not set
+	if databaseURL == "" {
+		databaseURL = os.Getenv("PGDATABASE_URL")
+	}
+	
+	var dsn string
+	if databaseURL != "" {
+		// Use the complete connection string from Railway
+		
+		// Check if we're in Railway environment
+		isRailway := false
+		for _, env := range os.Environ() {
+			if strings.HasPrefix(env, "RAILWAY_") {
+				isRailway = true
+				break
+			}
+		}
+		
+		// Add sslmode=require if not already specified and we're in Railway
+		if isRailway && !strings.Contains(databaseURL, "sslmode=") {
+			if strings.Contains(databaseURL, "?") {
+				databaseURL += "&sslmode=require"
+			} else {
+				databaseURL += "?sslmode=require"
+			}
+			log.Println("Added sslmode=require to database URL for Railway")
+		}
+		
+		dsn = databaseURL
+		log.Println("Using database URL for PostgreSQL connection (Railway)")
+	} else {
+		// Use individual connection parameters (local development)
+		config := LoadConfigFromEnv()
+		
+		// Check if we're in Railway environment (look for RAILWAY_* vars)
+		isRailway := false
+		for _, env := range os.Environ() {
+			if strings.HasPrefix(env, "RAILWAY_") {
+				isRailway = true
+				break
+			}
+		}
+		
+		// Use SSL in Railway environment, disable SSL for local development
+		sslMode := "disable"
+		if isRailway {
+			sslMode = "require"
+			log.Println("Enabling SSL for Railway PostgreSQL connection")
+		}
+		
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			config.Host, config.Port, config.User, config.Password, config.DBName, sslMode)
+		log.Println("Using individual parameters for PostgreSQL connection")
+	}
 
 	// Connect with retry logic
 	var err error
@@ -77,7 +156,32 @@ func Connect() (*sql.DB, error) {
 			}
 		}
 		
+		// Print more detailed error for diagnostic purposes
 		log.Printf("Failed to connect to database (attempt %d/%d): %v", i+1, maxRetries, err)
+		
+		// Print more environment details to help diagnose the issue
+		if i == 0 {
+			// Only print environment details on first attempt
+			config := LoadConfigFromEnv()
+			log.Printf("Connection details: host=%s, port=%s, user=%s, dbname=%s", 
+				config.Host, config.Port, config.User, config.DBName)
+			
+			// Print all environment variables with PG prefix for debugging
+			log.Println("Environment variables for database connection:")
+			for _, env := range os.Environ() {
+				if strings.HasPrefix(env, "PG") || strings.HasPrefix(env, "DB_") {
+					// Don't log passwords
+					if !strings.Contains(env, "PASSWORD") && !strings.Contains(env, "PASS") {
+						log.Println(env)
+					} else {
+						parts := strings.SplitN(env, "=", 2)
+						if len(parts) == 2 {
+							log.Printf("%s=********", parts[0])
+						}
+					}
+				}
+			}
+		}
 		
 		if i < maxRetries-1 {
 			log.Printf("Retrying in %v...", retryDelay)
@@ -90,6 +194,7 @@ func Connect() (*sql.DB, error) {
 	}
 
 	// Configure connection pool
+	config := LoadConfigFromEnv() // Get default config for connection pool settings
 	sqlDB.SetMaxIdleConns(config.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(config.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(config.MaxLifetime)

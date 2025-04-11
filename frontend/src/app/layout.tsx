@@ -3,7 +3,9 @@ import type { Metadata } from 'next'
 import React from 'react'
 import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
 import ToastProvider from '@/contexts/ToastProvider'
+import { AuthProvider } from '@/contexts/AuthContext'
 import Navbar from '@/components/ui/Navbar'
+import HeaderClientWrapper from '@/components/HeaderClientWrapper'
 import { Inter, DM_Sans } from 'next/font/google'
 
 // Initialize the fonts
@@ -33,14 +35,19 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${dmSans.variable}`} suppressHydrationWarning>
       <body className="font-sans">
-        <SolanaWalletProvider>
-          <ToastProvider>
-            <Navbar />
-            <main className="min-h-screen bg-gray-50">
-              {children}
-            </main>
-          </ToastProvider>
-        </SolanaWalletProvider>
+        <AuthProvider>
+          <SolanaWalletProvider>
+            <ToastProvider>
+              <HeaderClientWrapper />
+              <Navbar />
+              <main className="min-h-screen bg-gray-50 pt-4 pb-8">
+                <div className="container-fluid">
+                  {children}
+                </div>
+              </main>
+            </ToastProvider>
+          </SolanaWalletProvider>
+        </AuthProvider>
       </body>
     </html>
   )

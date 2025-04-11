@@ -84,4 +84,60 @@ label {
 /* Focus ring styling */
 .custom-focus-ring:focus {
   @apply outline-none ring-2 ring-primary-500 ring-opacity-50;
+}
+
+/* Responsive container styling */
+.container-fluid {
+  @apply w-full px-4 sm:px-6 lg:px-8 mx-auto;
+  max-width: 1400px;
+}
+
+/* Better table responsiveness */
+.table-responsive {
+  @apply overflow-x-auto -mx-4 sm:-mx-0;
+}
+
+/* Typography improvements */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-medium tracking-tight;
+  @apply text-gray-900;
+}
+
+h1 { @apply text-2xl sm:text-3xl mb-4; }
+h2 { @apply text-xl sm:text-2xl mb-3; }
+h3 { @apply text-lg sm:text-xl mb-2; }
+
+/* Responsive card */
+.card {
+  @apply bg-white rounded-lg shadow-md overflow-hidden;
+  @apply border border-gray-100;
+}
+
+.card-body {
+  @apply p-4 sm:p-6;
+}
+
+/* Status badge enhancements */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+/* Custom scrollbar for desktop */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
 } 

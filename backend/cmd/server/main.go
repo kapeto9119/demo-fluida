@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/ncapetillo/demo-fluida/internal/handlers"
 	"github.com/ncapetillo/demo-fluida/internal/middleware"
 	"github.com/ncapetillo/demo-fluida/internal/repository"
+	"github.com/ncapetillo/demo-fluida/internal/response"
 	"github.com/ncapetillo/demo-fluida/internal/services"
 	"github.com/ncapetillo/demo-fluida/internal/solana"
 )
@@ -70,27 +70,52 @@ func main() {
 	}
 
 	// Middleware
-	r.Use(chimiddleware.Logger)
-	r.Use(chimiddleware.Recoverer)
-	r.Use(chimiddleware.Timeout(30 * time.Second))
+	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.RequestIDMiddleware)
 	
-	// Add our custom security middleware
-	r.Use(middleware.SecurityHeaders)
-	r.Use(middleware.ValidateContentType)
-	
-	// Configure CORS
+	// Configure CORS - MUST be before BasicAuth for OPTIONS preflight requests
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"https://demo-fluida-production.up.railway.app", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	
+	// Add Basic Authentication
+	r.Use(middleware.BasicAuth)
+	
+	r.Use(middleware.ErrorHandler)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.Timeout(30 * time.Second))
+	
+	// Configure rate limiter based on environment
+	var rateLimit int
+	if os.Getenv("ENVIRONMENT") == "production" {
+		// Higher limit for production to handle legitimate traffic spikes
+		rateLimit = 120 // 120 requests per minute per IP in production
+	} else {
+		// More restrictive for development/testing
+		rateLimit = 60 // 60 requests per minute per IP in development
+	}
+	
+	// Add custom rate limiter
+	log.Printf("Configuring rate limiter with %d requests per minute per IP", rateLimit)
+	rateLimiter := middleware.NewSimpleRateLimiter(rateLimit)
+	r.Use(rateLimiter.RateLimit)
+	
+	// Add our custom security middleware
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.ValidateContentType)
 
 	// Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Fluida Invoice API - v1.0"))
+		response.JSON(w, http.StatusOK, map[string]string{
+			"name": "Fluida Invoice API",
+			"version": "1.0.0",
+			"docs": "/api/docs",
+		})
 	})
 
 	// Health check endpoint
@@ -98,13 +123,36 @@ func main() {
 		// Check database connection
 		if err := sqlDB.Ping(); err != nil {
 			log.Printf("Health check failed: %v", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("Database connection unavailable"))
+			response.Error(w, http.StatusServiceUnavailable, 
+				"Database connection unavailable", "database_error")
 			return
 		}
 		
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		response.Success(w, http.StatusOK, "OK")
+	})
+
+	// Additional health check endpoint to match Railway.app configuration
+	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		// Check database connection
+		if err := sqlDB.Ping(); err != nil {
+			log.Printf("Health check failed: %v", err)
+			
+			response.Error(w, http.StatusServiceUnavailable, 
+				"Database connection unavailable: "+err.Error(), "database_error")
+			return
+		}
+		
+		// Add more detailed health check information
+		healthResponse := map[string]interface{}{
+			"status": "OK",
+			"version": "1.0.0",
+			"dependencies": map[string]string{
+				"database": "connected",
+			},
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+		
+		response.JSON(w, http.StatusOK, healthResponse)
 	})
 
 	// API routes
@@ -117,25 +165,24 @@ func main() {
 				if err := sqlDB.Ping(); err != nil {
 					log.Printf("Health check failed: %v", err)
 					
-					// Return standardized error response
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusServiceUnavailable)
-					json.NewEncoder(w).Encode(map[string]interface{}{
-						"error": "Database connection unavailable",
-						"code":  "database_error",
-					})
+					response.Error(w, http.StatusServiceUnavailable, 
+						"Database connection unavailable", "database_error")
 					return
 				}
 				
-				// Return standardized success response
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				response.JSON(w, http.StatusOK, map[string]interface{}{
 					"status": "OK",
 					"version": "1.0.0",
 					"dependencies": map[string]string{
 						"database": "connected",
 					},
+				})
+			})
+			
+			// Authentication verification endpoint - returns 200 if auth is valid
+			r.Get("/auth/verify", func(w http.ResponseWriter, r *http.Request) {
+				response.JSON(w, http.StatusOK, map[string]string{
+					"status": "authenticated",
 				})
 			})
 			

@@ -5,7 +5,6 @@ import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
 import ToastProvider from '@/contexts/ToastProvider'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Navbar from '@/components/ui/Navbar'
-import HeaderClientWrapper from '@/components/HeaderClientWrapper'
 import { Inter, DM_Sans } from 'next/font/google'
 
 // Initialize the fonts
@@ -38,7 +37,6 @@ export default function RootLayout({
         <AuthProvider>
           <SolanaWalletProvider>
             <ToastProvider>
-              <HeaderClientWrapper />
               <Navbar />
               <main className="min-h-screen bg-gray-50 pt-4 pb-8">
                 <div className="container-fluid">

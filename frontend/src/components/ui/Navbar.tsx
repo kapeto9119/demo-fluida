@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
 /**
  * Main navigation bar component
@@ -10,6 +11,15 @@ import { usePathname } from 'next/navigation'
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
+  const { isAuthenticated, logout } = useAuth()
+
+  // Don't show navbar on login page or payment pages
+  const isLoginPage = pathname === '/login'
+  const isPaymentPage = pathname?.startsWith('/pay/')
+  
+  if (isLoginPage || isPaymentPage || !isAuthenticated) {
+    return null
+  }
 
   // Navigation links
   const navLinks = [
@@ -28,6 +38,11 @@ export const Navbar = () => {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
+  }
+
+  const handleLogout = () => {
+    logout()
+    setIsMobileMenuOpen(false)
   }
 
   return (
@@ -70,6 +85,16 @@ export const Navbar = () => {
                 </Link>
               ))}
             </div>
+          </div>
+
+          {/* User menu and logout button */}
+          <div className="hidden sm:flex sm:items-center">
+            <button
+              onClick={handleLogout}
+              className="ml-4 text-red-600 hover:text-red-800 px-3 py-2 text-sm font-medium transition-colors duration-200"
+            >
+              Logout
+            </button>
           </div>
 
           {/* Mobile menu button */}
@@ -135,6 +160,14 @@ export const Navbar = () => {
               {link.name}
             </Link>
           ))}
+          
+          {/* Logout in mobile menu */}
+          <button
+            onClick={handleLogout}
+            className="border-transparent text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-800 block w-full text-left pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </nav>

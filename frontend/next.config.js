@@ -6,7 +6,8 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/:path*`,
+        // TEMPORARY FIX: Hardcode the production API URL
+        destination: `https://serene-radiance-production.up.railway.app/api/:path*`,
       },
     ];
   },

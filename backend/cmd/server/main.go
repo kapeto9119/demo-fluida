@@ -107,6 +107,41 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
+	// Additional health check endpoint to match Railway.app configuration
+	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		// Check database connection
+		if err := sqlDB.Ping(); err != nil {
+			log.Printf("Health check failed: %v", err)
+			
+			// Add detailed error information to help diagnose the issue
+			errorResponse := map[string]interface{}{
+				"status": "error",
+				"error": "Database connection unavailable",
+				"code":  "database_error",
+				"message": err.Error(),
+			}
+			
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(errorResponse)
+			return
+		}
+		
+		// Add more detailed health check information
+		healthResponse := map[string]interface{}{
+			"status": "OK",
+			"version": "1.0.0",
+			"dependencies": map[string]string{
+				"database": "connected",
+			},
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(healthResponse)
+	})
+
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		// API version 1

@@ -29,6 +29,10 @@ RUN go build -o server cmd/server/main.go
 # Set production environment variable
 ENV ENVIRONMENT=production
 
+# Set default authentication (can be overridden)
+ENV AUTH_USERNAME=admin
+ENV AUTH_PASSWORD=fluida
+
 # Expose port
 EXPOSE 8080
 

@@ -72,6 +72,10 @@ func main() {
 	// Middleware
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.RequestIDMiddleware)
+	
+	// Add Basic Authentication
+	r.Use(middleware.BasicAuth)
+	
 	r.Use(middleware.ErrorHandler)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))

@@ -1,8 +1,9 @@
 import axios from 'axios'
 import { Invoice, InvoiceFormData } from '../types'
 
-// Get the API URL from environment or use localhost in development
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// TEMPORARY FIX: Hardcode the production API URL
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+const API_URL = 'https://serene-radiance-production.up.railway.app'
 
 // Create an axios instance with default settings
 const api = axios.create({

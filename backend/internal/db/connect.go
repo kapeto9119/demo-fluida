@@ -94,13 +94,50 @@ func Connect() (*sql.DB, error) {
 	var dsn string
 	if databaseURL != "" {
 		// Use the complete connection string from Railway
+		
+		// Check if we're in Railway environment
+		isRailway := false
+		for _, env := range os.Environ() {
+			if strings.HasPrefix(env, "RAILWAY_") {
+				isRailway = true
+				break
+			}
+		}
+		
+		// Add sslmode=require if not already specified and we're in Railway
+		if isRailway && !strings.Contains(databaseURL, "sslmode=") {
+			if strings.Contains(databaseURL, "?") {
+				databaseURL += "&sslmode=require"
+			} else {
+				databaseURL += "?sslmode=require"
+			}
+			log.Println("Added sslmode=require to database URL for Railway")
+		}
+		
 		dsn = databaseURL
 		log.Println("Using database URL for PostgreSQL connection (Railway)")
 	} else {
 		// Use individual connection parameters (local development)
 		config := LoadConfigFromEnv()
-		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			config.Host, config.Port, config.User, config.Password, config.DBName)
+		
+		// Check if we're in Railway environment (look for RAILWAY_* vars)
+		isRailway := false
+		for _, env := range os.Environ() {
+			if strings.HasPrefix(env, "RAILWAY_") {
+				isRailway = true
+				break
+			}
+		}
+		
+		// Use SSL in Railway environment, disable SSL for local development
+		sslMode := "disable"
+		if isRailway {
+			sslMode = "require"
+			log.Println("Enabling SSL for Railway PostgreSQL connection")
+		}
+		
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			config.Host, config.Port, config.User, config.Password, config.DBName, sslMode)
 		log.Println("Using individual parameters for PostgreSQL connection")
 	}
 

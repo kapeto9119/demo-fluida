@@ -35,8 +35,9 @@ export default function LoginPage() {
       await login(username, password)
       // Login success is handled by the context (redirects to home)
     } catch (err: any) {
-      console.error('Login error:', err)
-      setError(err.message || 'Invalid credentials. Please try again.')
+      // Use a consistent error message for authentication failures
+      // Don't expose the specific error for security reasons
+      setError('Invalid username or password. Please try again.')
       setIsLoading(false)
     }
   }

@@ -47,27 +47,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Create temporary authentication token
       const tempToken = btoa(`${username}:${password}`)
       
-      // Verify credentials with backend before storing
-      const response = await fetch(`${API_URL}/api/v1/health`, {
-        headers: {
-          'Authorization': `Basic ${tempToken}`
+      // Silent authentication verification - using a cleaner approach
+      const controller = new AbortController();
+      const signal = controller.signal;
+      
+      try {
+        // Use dedicated auth verification endpoint
+        const response = await fetch(`${API_URL}/api/v1/auth/verify`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${tempToken}`,
+            // Prevent OPTIONS preflight for simpler requests
+            'Accept': 'application/json',
+          },
+          // Don't send cookies for this request
+          credentials: 'omit',
+          signal: signal,
+        });
+        
+        if (response.ok) {
+          // Store verified credentials in localStorage
+          localStorage.setItem('auth_credentials', tempToken)
+          localStorage.setItem('auth_username', username)
+          localStorage.setItem('auth_password', password)
+          
+          setIsAuthenticated(true)
+          router.push('/')
+          return;
         }
-      })
-      
-      if (!response.ok) {
-        throw new Error('Invalid credentials')
+        
+        // For any non-OK response, throw a user-friendly error
+        throw new Error('Invalid username or password');
+      } catch (fetchError) {
+        // If it's a network error or unexpected issue, provide a user-friendly message
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          // Request was aborted - stay silent
+          return;
+        }
+        
+        // For auth errors and other issues, use a consistent message
+        throw new Error('Invalid username or password');
+      } finally {
+        // Clean up the controller
+        controller.abort();
       }
-      
-      // Store verified credentials in localStorage
-      localStorage.setItem('auth_credentials', tempToken)
-      localStorage.setItem('auth_username', username)
-      localStorage.setItem('auth_password', password)
-      
-      setIsAuthenticated(true)
-      router.push('/')
     } catch (error) {
-      console.error('Login error:', error)
-      throw error // Rethrow to allow login page to show error
+      console.error('Authentication failed');
+      throw error; // Rethrow to allow login page to show error
     }
   }
 

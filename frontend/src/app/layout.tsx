@@ -2,8 +2,9 @@ import './globals.css'
 import type { Metadata } from 'next'
 import React from 'react'
 import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
+import ToastProvider from '@/contexts/ToastProvider'
 import { AuthProvider } from '@/contexts/AuthContext'
-import HeaderClientWrapper from '@/components/HeaderClientWrapper'
+import Navbar from '@/components/ui/Navbar'
 import { Inter, DM_Sans } from 'next/font/google'
 
 // Initialize the fonts
@@ -35,12 +36,14 @@ export default function RootLayout({
       <body className="font-sans">
         <AuthProvider>
           <SolanaWalletProvider>
-            <HeaderClientWrapper />
-            <main className="min-h-screen bg-gray-50 pt-4 pb-8">
-              <div className="container-fluid">
-                {children}
-              </div>
-            </main>
+            <ToastProvider>
+              <Navbar />
+              <main className="min-h-screen bg-gray-50 pt-4 pb-8">
+                <div className="container-fluid">
+                  {children}
+                </div>
+              </main>
+            </ToastProvider>
           </SolanaWalletProvider>
         </AuthProvider>
       </body>

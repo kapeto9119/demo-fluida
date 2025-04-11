@@ -2,6 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 import React from 'react'
 import SolanaWalletProvider from '@/contexts/SolanaWalletProvider'
+import ToastProvider from '@/contexts/ToastProvider'
+import Navbar from '@/components/ui/Navbar'
 import { Inter, DM_Sans } from 'next/font/google'
 
 // Initialize the fonts
@@ -32,9 +34,12 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${dmSans.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <SolanaWalletProvider>
-          <main className="min-h-screen bg-gray-50">
-            {children}
-          </main>
+          <ToastProvider>
+            <Navbar />
+            <main className="min-h-screen bg-gray-50">
+              {children}
+            </main>
+          </ToastProvider>
         </SolanaWalletProvider>
       </body>
     </html>

@@ -40,6 +40,8 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-fluida}
     ports:
       - "${BACKEND_PORT}:8080"
     volumes:
@@ -59,6 +61,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      NEXT_PUBLIC_AUTH_PASSWORD: ${AUTH_PASSWORD:-fluida}
     ports:
       - "${FRONTEND_PORT}:3000"
     volumes:
